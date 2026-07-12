@@ -1,1 +1,0 @@
-# ClubSync-final
