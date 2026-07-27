@@ -12,6 +12,8 @@ import {
   Select,
   TextArea,
   formatDate,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -45,11 +47,13 @@ export default function Budgets() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState('all');
+  const [search, setSearch] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<Budget | null>(null);
 
@@ -74,7 +78,8 @@ export default function Budgets() {
 
   const openAdd = () => {
     setEditingId(null);
-    setForm({ ...emptyForm });
+    setForm({ ...emptyForm, transaction_date: new Date().toISOString().slice(0, 10) });
+    setFormError(null);
     setModalOpen(true);
   };
 
@@ -88,19 +93,34 @@ export default function Budgets() {
       description: b.description ?? '',
       transaction_date: b.transaction_date ? b.transaction_date.slice(0, 10) : '',
     });
+    setFormError(null);
     setModalOpen(true);
   };
 
   const handleSave = async () => {
+    setFormError(null);
+    if (!form.title.trim()) {
+      setFormError('Please enter a title.');
+      return;
+    }
+    const amount = Number(form.amount);
+    if (!form.amount || !Number.isFinite(amount) || amount < 0) {
+      setFormError('Please enter a valid, non-negative amount.');
+      return;
+    }
+    if (!form.transaction_date) {
+      setFormError('Please set a transaction date.');
+      return;
+    }
     setSaving(true);
     try {
       const payload: Record<string, any> = {
         title: form.title,
         type: form.type,
-        amount: Number(form.amount) || 0,
+        amount,
         category: form.category || null,
         description: form.description || null,
-        transaction_date: form.transaction_date || null,
+        transaction_date: form.transaction_date,
       };
       if (editingId) {
         await updateBudget(editingId, payload);
@@ -110,7 +130,7 @@ export default function Budgets() {
       setModalOpen(false);
       await refresh();
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save budget');
+      setFormError(e.message ?? 'Failed to save budget');
     } finally {
       setSaving(false);
     }
@@ -127,7 +147,13 @@ export default function Budgets() {
     }
   };
 
-  const filtered = budgets.filter((b) => typeFilter === 'all' || b.type === typeFilter);
+  const filtered = budgets.filter((b) => {
+    const matchesType = typeFilter === 'all' || b.type === typeFilter;
+    const q = search.toLowerCase().trim();
+    const matchesSearch = !q || b.title?.toLowerCase().includes(q) || (b.category ?? '').toLowerCase().includes(q);
+    return matchesType && matchesSearch;
+  });
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filtered, 15);
 
   const totalIncome = budgets.filter((b) => b.type === 'income').reduce((s, b) => s + (Number(b.amount) || 0), 0);
   const totalExpense = budgets.filter((b) => b.type === 'expense').reduce((s, b) => s + (Number(b.amount) || 0), 0);
@@ -159,6 +185,9 @@ export default function Budgets() {
       </div>
 
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="w-full sm:w-64">
+          <Input label="Search" placeholder="Search by title or category..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
         <div className="w-full sm:w-56">
           <Select label="Filter by type" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
             <option value="all">All types</option>
@@ -175,8 +204,9 @@ export default function Budgets() {
       ) : filtered.length === 0 ? (
         <EmptyState title="No transactions found" message="Add a transaction to start tracking finances." />
       ) : (
+        <>
         <Table headers={['Title', 'Type', 'Category', 'Amount', 'Date', 'Actions']}>
-          {filtered.map((b) => (
+          {paged.map((b) => (
             <TableRow key={b.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">{b.title}</TableCell>
               <TableCell><Badge status={b.type} /></TableCell>
@@ -194,10 +224,15 @@ export default function Budgets() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Transaction' : 'Add Transaction'}>
         <div className="space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Transaction title" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Select label="Type" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>

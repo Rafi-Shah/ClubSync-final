@@ -9,6 +9,8 @@ import {
   TableCell,
   formatDate,
   formatDateTime,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -191,6 +193,8 @@ export default function WebsiteCMS() {
     { key: 'messages', label: 'Messages' },
   ];
 
+  const messagesPagination = usePagination(messages, 15);
+
   return (
     <div>
       <PageTitle title="Website CMS" subtitle="Manage public website content and settings" />
@@ -369,8 +373,9 @@ export default function WebsiteCMS() {
             <EmptyState title="No messages" message="Contact form submissions will appear here." />
           )}
           {!messagesLoading && !messagesError && messages.length > 0 && (
+            <>
             <Table headers={['Name', 'Email', 'Subject', 'Message', 'Date', 'Status', 'Action']}>
-              {messages.map((msg) => (
+              {messagesPagination.paged.map((msg) => (
                 <TableRow key={msg.id}>
                   <TableCell className="font-medium text-slate-900 dark:text-white">{msg.name}</TableCell>
                   <TableCell>{msg.email}</TableCell>
@@ -399,6 +404,14 @@ export default function WebsiteCMS() {
                 </TableRow>
               ))}
             </Table>
+            <Pagination
+              page={messagesPagination.page}
+              totalPages={messagesPagination.totalPages}
+              onPageChange={messagesPagination.setPage}
+              totalItems={messagesPagination.totalItems}
+              pageSize={messagesPagination.pageSize}
+            />
+            </>
           )}
         </div>
       )}

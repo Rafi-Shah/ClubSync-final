@@ -16,6 +16,7 @@ export interface MemberProfile {
 }
 
 interface RoleInfo {
+  id: number;
   slug: string;
   name: string;
 }
@@ -25,6 +26,16 @@ interface AuthCtx {
   session: Session | null;
   member: MemberProfile | null;
   roles: RoleInfo[];
+  /**
+   * The union of every permission slug granted by any of the user's roles,
+   * via role_permissions. This is what RoleManagement.tsx actually edits —
+   * it MUST be the source of truth for what a user can access, not the
+   * user's role slug alone. (Previously, every non-"member" role was
+   * treated identically as "full admin" regardless of which permissions
+   * were actually toggled on for it.)
+   */
+  permissions: Set<string>;
+  hasPermission: (slug: string) => boolean;
   loading: boolean;
   /**
    * True only while a member/roles fetch for the current user is in flight
@@ -46,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [roles, setRoles] = useState<RoleInfo[]>([]);
+  const [permissions, setPermissions] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
 
@@ -56,16 +68,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         supabase.from('members').select('*').eq('user_id', uid).maybeSingle(),
         supabase
           .from('user_roles')
-          .select('role:roles(slug, name)')
+          .select('role:roles(id, slug, name)')
           .eq('user_id', uid),
       ]);
       if (memberRes.data) setMember(memberRes.data as MemberProfile);
       else setMember(null);
-      if (rolesRes.data) {
-        const r = rolesRes.data.map((row: any) => row.role).filter(Boolean);
-        setRoles(r);
+
+      const r: RoleInfo[] = rolesRes.data
+        ? rolesRes.data.map((row: any) => row.role).filter(Boolean)
+        : [];
+      setRoles(r);
+
+      const roleIds = r.map((role) => role.id).filter(Boolean);
+      if (roleIds.length > 0) {
+        const { data: permRows } = await supabase
+          .from('role_permissions')
+          .select('permission:permissions(slug)')
+          .in('role_id', roleIds);
+        const slugs = (permRows ?? [])
+          .map((row: any) => row.permission?.slug)
+          .filter(Boolean) as string[];
+        setPermissions(new Set(slugs));
       } else {
-        setRoles([]);
+        setPermissions(new Set());
       }
     } finally {
       setProfileLoading(false);
@@ -92,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setMember(null);
           setRoles([]);
+          setPermissions(new Set());
         }
       })();
     });
@@ -108,14 +134,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setMember(null);
     setRoles([]);
+    setPermissions(new Set());
   };
 
   const refreshMember = async () => {
     if (user) await loadProfile(user.id);
   };
 
+  const hasPermission = (slug: string) => permissions.has(slug);
+
   return (
-    <Ctx.Provider value={{ user, session, member, roles, loading, profileLoading, signIn, signOut, refreshMember }}>
+    <Ctx.Provider value={{ user, session, member, roles, permissions, hasPermission, loading, profileLoading, signIn, signOut, refreshMember }}>
       {children}
     </Ctx.Provider>
   );

@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
-import { PageTitle, Badge, Modal, Input, formatDateTime } from '../../components/admin/AdminUI';
+import { PageTitle, Badge, Modal, ConfirmDelete, Input, formatDateTime } from '../../components/admin/AdminUI';
+import { getConversations, getMessages, sendMessage, getAllMembers, addParticipant, deleteConversation } from '../../lib/adminApi';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
-import { getConversations, getMessages, sendMessage, getAllMembers } from '../../lib/adminApi';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
 
 interface Conversation {
   id: string;
-  title: string;
+  title: string | null;
   conversation_type: string;
   last_message_at: string | null;
   created_by_member_id: string | null;
+  // Populated client-side for direct conversations: the OTHER participant's
+  // name (never the current admin's own name). A shared `title` column
+  // can't correctly represent "who am I talking to" for a 1:1 chat, since
+  // it looks different depending on who's viewing it — this is computed
+  // per-viewer instead, same approach as the member portal's Chat.tsx.
+  otherParticipantName?: string;
 }
 
 interface Message {
@@ -43,14 +49,50 @@ export default function LiveChat() {
   const [newChatMemberId, setNewChatMemberId] = useState('');
   const [creating, setCreating] = useState(false);
   const [mobileShowChat, setMobileShowChat] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Conversation | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Given a list of direct conversation ids, fetches all their participant
+  // rows in one batch query and returns a Map of conversation_id -> the
+  // OTHER participant's full_name (i.e. not the current admin).
+  async function fetchOtherParticipantNames(directConvIds: string[]) {
+    const nameMap = new Map<string, string>();
+    if (!member || directConvIds.length === 0) return nameMap;
+
+    const { data: parts } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id, member_id, member:members(full_name)')
+      .in('conversation_id', directConvIds);
+
+    (parts ?? []).forEach((p: any) => {
+      if (p.member_id !== member.id) {
+        nameMap.set(p.conversation_id, p.member?.full_name ?? 'Direct Message');
+      }
+    });
+    return nameMap;
+  }
 
   async function refresh() {
     setLoading(true);
     setError(null);
     try {
       const [convs, mems] = await Promise.all([getConversations(), getAllMembers()]);
-      setConversations(convs as Conversation[]);
+      const typedConvs = convs as Conversation[];
+
+      // Resolve the correct "who am I talking to" name for every direct
+      // conversation before rendering, instead of relying on the stored
+      // title (which reflects whoever created the chat, not the current
+      // viewer).
+      const directIds = typedConvs.filter((c) => c.conversation_type === 'direct').map((c) => c.id);
+      const nameMap = await fetchOtherParticipantNames(directIds);
+      typedConvs.forEach((c) => {
+        if (c.conversation_type === 'direct') {
+          c.otherParticipantName = nameMap.get(c.id) ?? 'Direct Message';
+        }
+      });
+
+      setConversations(typedConvs);
       setMembers(mems as Member[]);
     } catch (e: any) {
       setError(e.message ?? 'Failed to load data.');
@@ -148,19 +190,24 @@ export default function LiveChat() {
     setCreating(true);
     try {
       const selectedMember = members.find((m) => m.id === newChatMemberId);
-      const title = selectedMember ? selectedMember.full_name : 'Direct Chat';
+      // No longer storing the other member's name in the shared `title`
+      // column — that only looked correct from the creator's own point of
+      // view. Direct conversations are untitled in the DB; the display
+      // name is resolved per-viewer instead (see fetchOtherParticipantNames).
       const { data, error: insErr } = await supabase
         .from('conversations')
-        .insert({ conversation_type: 'direct', title, created_by_member_id: member.id })
+        .insert({ conversation_type: 'direct', created_by_member_id: member.id })
         .select()
         .single();
       if (insErr) throw insErr;
-      // Add both participants
-      await supabase.from('conversation_participants').insert([
-        { conversation_id: data.id, member_id: member.id },
-        { conversation_id: data.id, member_id: newChatMemberId },
-      ]);
-      const newConv = data as Conversation;
+      // Add both participants. Using the checked addParticipant wrapper
+      // (which throws on failure) instead of a raw unchecked insert —
+      // supabase-js does not throw on its own, so a failed insert here
+      // previously left the new conversation with no participants while
+      // still reporting success.
+      await addParticipant(data.id, member.id);
+      await addParticipant(data.id, newChatMemberId);
+      const newConv: Conversation = { ...(data as Conversation), otherParticipantName: selectedMember?.full_name ?? 'Direct Message' };
       setConversations((prev) => [newConv, ...prev]);
       setSelectedId(data.id);
       setMobileShowChat(true);
@@ -173,9 +220,38 @@ export default function LiveChat() {
     }
   }
 
+  async function handleDeleteConversation() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await deleteConversation(deleteTarget.id);
+      setConversations((prev) => prev.filter((c) => c.id !== deleteTarget.id));
+      if (selectedId === deleteTarget.id) {
+        setSelectedId(null);
+        setMobileShowChat(false);
+      }
+      setDeleteTarget(null);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to delete conversation.');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   function selectConversation(id: string) {
     setSelectedId(id);
     setMobileShowChat(true);
+  }
+
+  // Resolves what to actually display for a conversation: the other
+  // participant's name for direct chats, the stored title for
+  // group/broadcast/executive chats, or a capitalized fallback.
+  function getConvTitle(conv: Conversation) {
+    if (conv.conversation_type === 'direct') {
+      return conv.otherParticipantName || 'Direct Message';
+    }
+    if (conv.title) return conv.title;
+    return conv.conversation_type.charAt(0).toUpperCase() + conv.conversation_type.slice(1);
   }
 
   const selectedConversation = conversations.find((c) => c.id === selectedId);
@@ -242,7 +318,7 @@ export default function LiveChat() {
                   >
                     <div className="flex items-center justify-between gap-2 mb-1">
                       <p className="text-sm font-medium text-slate-900 dark:text-white truncate flex-1">
-                        {conv.title}
+                        {getConvTitle(conv)}
                       </p>
                       <Badge status={conv.conversation_type} />
                     </div>
@@ -271,12 +347,21 @@ export default function LiveChat() {
                   </button>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-slate-900 dark:text-white truncate">
-                      {selectedConversation.title}
+                      {getConvTitle(selectedConversation)}
                     </h3>
                     <div className="flex items-center gap-2">
                       <Badge status={selectedConversation.conversation_type} />
                     </div>
                   </div>
+                  <button
+                    onClick={() => setDeleteTarget(selectedConversation)}
+                    title="Delete conversation"
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                  </button>
                 </div>
 
                 {/* Messages */}
@@ -399,6 +484,13 @@ export default function LiveChat() {
           </div>
         </div>
       </Modal>
+
+      <ConfirmDelete
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={handleDeleteConversation}
+        itemName={deleteTarget ? getConvTitle(deleteTarget) : 'this conversation'}
+      />
     </div>
   );
 }

@@ -10,6 +10,8 @@ import {
   Select,
   TextArea,
   formatDateTime,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -58,6 +60,7 @@ export default function AttendanceAdmin() {
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [editTarget, setEditTarget] = useState<Attendance | null>(null);
   const [editStatus, setEditStatus] = useState('present');
@@ -93,10 +96,16 @@ export default function AttendanceAdmin() {
 
   const openAdd = () => {
     setForm({ ...emptyForm });
+    setFormError(null);
     setAddOpen(true);
   };
 
   const handleAdd = async () => {
+    setFormError(null);
+    if (!form.member_id) {
+      setFormError('Please select a member.');
+      return;
+    }
     setSaving(true);
     try {
       await createAttendance({
@@ -109,7 +118,7 @@ export default function AttendanceAdmin() {
       setAddOpen(false);
       await refresh();
     } catch (e: any) {
-      setError(e.message ?? 'Failed to create attendance record');
+      setFormError(e.message ?? 'Failed to create attendance record');
     } finally {
       setSaving(false);
     }
@@ -136,6 +145,7 @@ export default function AttendanceAdmin() {
   };
 
   const filtered = records.filter((a) => statusFilter === 'all' || a.status === statusFilter);
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filtered, 15);
 
   const counts = {
     present: records.filter((a) => a.status === 'present').length,
@@ -189,8 +199,9 @@ export default function AttendanceAdmin() {
       ) : filtered.length === 0 ? (
         <EmptyState title="No attendance records" message="Add a record to start tracking attendance." />
       ) : (
+        <>
         <Table headers={['Member', 'Event / Meeting', 'Status', 'Recorded', 'Actions']}>
-          {filtered.map((a) => (
+          {paged.map((a) => (
             <TableRow key={a.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">{a.member?.full_name ?? '—'}</TableCell>
               <TableCell>{refTitle(a)}</TableCell>
@@ -202,10 +213,15 @@ export default function AttendanceAdmin() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add Attendance Record">
         <div className="space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <Select label="Member" value={form.member_id} onChange={(e) => setForm({ ...form, member_id: e.target.value })}>
             <option value="">— Select member —</option>
             {members.map((m) => (

@@ -20,6 +20,8 @@ import {
   TextArea,
   Select,
   formatDate,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 
@@ -84,6 +86,7 @@ export default function TaskAssignment() {
   const [editing, setEditing] = useState<Task | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
 
   const load = async () => {
@@ -112,9 +115,12 @@ export default function TaskAssignment() {
     return tasks.filter((t) => t.status === statusFilter);
   }, [tasks, statusFilter]);
 
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filteredTasks, 10);
+
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
+    setFormError(null);
     setModalOpen(true);
   };
 
@@ -130,16 +136,26 @@ export default function TaskAssignment() {
       priority: t.priority ?? 'medium',
       due_at: t.due_at ? new Date(t.due_at).toISOString().slice(0, 16) : '',
     });
+    setFormError(null);
     setModalOpen(true);
   };
 
   const handleSave = async () => {
+    setFormError(null);
+    if (!form.title.trim()) {
+      setFormError('Please enter a title.');
+      return;
+    }
+    if (!form.assigned_to_member_id) {
+      setFormError('Please select who this task is assigned to.');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         title: form.title,
         description: form.description || null,
-        assigned_to_member_id: form.assigned_to_member_id || null,
+        assigned_to_member_id: form.assigned_to_member_id,
         assigned_by_member_id: form.assigned_by_member_id || null,
         related_event_id: form.related_event_id || null,
         status: form.status,
@@ -154,7 +170,7 @@ export default function TaskAssignment() {
       setModalOpen(false);
       await load();
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save task');
+      setFormError(e.message ?? 'Failed to save task');
     } finally {
       setSaving(false);
     }
@@ -219,8 +235,9 @@ export default function TaskAssignment() {
         <EmptyState title="No tasks found" message={statusFilter === 'all' ? 'Create your first task to get started.' : 'No tasks match this filter.'} />
       )}
       {!loading && !error && filteredTasks.length > 0 && (
+        <>
         <Table headers={['Title', 'Assignee', 'Assigner', 'Priority', 'Status', 'Due Date', '']}>
-          {filteredTasks.map((t) => (
+          {paged.map((t) => (
             <TableRow key={t.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">{t.title}</TableCell>
               <TableCell>{t.assignee?.full_name ?? '—'}</TableCell>
@@ -269,10 +286,15 @@ export default function TaskAssignment() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Task' : 'Add Task'}>
         <div className="space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <Input
             label="Title"
             value={form.title}

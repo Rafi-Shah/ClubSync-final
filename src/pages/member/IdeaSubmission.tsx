@@ -13,6 +13,7 @@ export default function IdeaSubmission() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', category: 'general' });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const load = async () => {
     if (!member) return;
@@ -26,18 +27,29 @@ export default function IdeaSubmission() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!member) return;
+    setFormError(null);
+    if (!form.title.trim() || !form.description.trim()) {
+      setFormError('Please fill in both a title and a description.');
+      return;
+    }
     setSaving(true);
     try {
-      await supabase.from('ideas').insert({
+      // supabase-js does NOT throw on a failed insert — it returns
+      // { error } instead. Without checking it, a failed submission was
+      // silently reported as a success.
+      const { error: insertError } = await supabase.from('ideas').insert({
         member_id: member.id,
         title: form.title,
         description: form.description,
         category: form.category,
       });
+      if (insertError) throw insertError;
       setForm({ title: '', description: '', category: 'general' });
       setShowForm(false);
       await load();
-    } catch { setError(true); }
+    } catch (err: any) {
+      setFormError(err.message ?? 'Failed to submit idea. Please try again.');
+    }
     finally { setSaving(false); }
   };
 
@@ -52,6 +64,9 @@ export default function IdeaSubmission() {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="card p-6 mb-6 space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <div>
             <label className="label">Title *</label>
             <input type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input" placeholder="Monthly project showcase" />

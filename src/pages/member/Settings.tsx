@@ -1,17 +1,46 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { PageTitle } from '../../components/member/MemberUI';
+import { getMyNotificationPreferences, saveMyNotificationPreferences } from '../../lib/memberApi';
+
+const defaultPrefs = { email: true, push: true, events: true, tasks: true };
 
 export default function Settings() {
   const { member, signOut } = useAuth();
   const { theme, toggle } = useTheme();
-  const [notifPrefs, setNotifPrefs] = useState({ email: true, push: true, events: true, tasks: true });
+  const [notifPrefs, setNotifPrefs] = useState(defaultPrefs);
+  const [loadingPrefs, setLoadingPrefs] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const handleSavePrefs = () => {
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  useEffect(() => {
+    if (!member) return;
+    getMyNotificationPreferences(member.id)
+      .then((row) => {
+        if (row) {
+          setNotifPrefs({ email: row.email, push: row.push, events: row.events, tasks: row.tasks });
+        }
+        // No row yet — keep the defaults; nothing has been saved before.
+      })
+      .catch(() => setSaveError('Failed to load your saved preferences.'))
+      .finally(() => setLoadingPrefs(false));
+  }, [member]);
+
+  const handleSavePrefs = async () => {
+    if (!member) return;
+    setSaveError(null);
+    setSaving(true);
+    try {
+      await saveMyNotificationPreferences(member.id, notifPrefs);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e: any) {
+      setSaveError(e.message ?? 'Failed to save preferences. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -39,6 +68,9 @@ export default function Settings() {
         {/* Notification preferences */}
         <div className="card p-6">
           <h2 className="font-display font-semibold text-slate-900 dark:text-white mb-4">Notification Preferences</h2>
+          {saveError && (
+            <p className="text-sm text-red-600 dark:text-red-400 mb-3">{saveError}</p>
+          )}
           <div className="space-y-4">
             {[
               { key: 'email', label: 'Email Notifications', desc: 'Receive notifications via email' },
@@ -52,16 +84,17 @@ export default function Settings() {
                   <p className="text-xs text-slate-500">{pref.desc}</p>
                 </div>
                 <button
+                  disabled={loadingPrefs}
                   onClick={() => setNotifPrefs(p => ({ ...p, [pref.key]: !p[pref.key as keyof typeof p] }))}
-                  className={`relative w-12 h-6 rounded-full transition-colors ${(notifPrefs as any)[pref.key] ? 'bg-primary-600' : 'bg-slate-300'}`}
+                  className={`relative w-12 h-6 rounded-full transition-colors disabled:opacity-50 ${(notifPrefs as any)[pref.key] ? 'bg-primary-600' : 'bg-slate-300'}`}
                 >
                   <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${(notifPrefs as any)[pref.key] ? 'translate-x-6' : ''}`} />
                 </button>
               </div>
             ))}
           </div>
-          <button onClick={handleSavePrefs} className="btn-primary mt-4">
-            {saved ? 'Saved!' : 'Save Preferences'}
+          <button onClick={handleSavePrefs} disabled={loadingPrefs || saving} className="btn-primary mt-4 disabled:opacity-50">
+            {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Preferences'}
           </button>
         </div>
 

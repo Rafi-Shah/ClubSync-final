@@ -9,6 +9,8 @@ import {
   Table,
   TableRow,
   TableCell,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -44,6 +46,7 @@ export default function UserManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [manageUser, setManageUser] = useState<{ userId: string; member: Member } | null>(null);
+  const [search, setSearch] = useState('');
   const [working, setWorking] = useState(false);
 
   const emptyForm = { full_name: '', email: '', password: '', phone: '', member_code: '', role_slug: 'member' };
@@ -87,6 +90,13 @@ export default function UserManagement() {
     member: info.member,
     roles: info.roles,
   }));
+
+  const filteredUsers = users.filter((u) => {
+    const q = search.toLowerCase().trim();
+    if (!q) return true;
+    return u.member?.full_name?.toLowerCase().includes(q) || u.member?.email?.toLowerCase().includes(q);
+  });
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filteredUsers, 15);
 
   // Current user's roles (for display)
   const currentMemberId = user?.id;
@@ -174,15 +184,20 @@ export default function UserManagement() {
         </div>
       )}
 
+      <div className="mb-4 w-full sm:w-64">
+        <Input label="Search" placeholder="Search by name or email..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+
       {loading ? (
         <LoadingState message="Loading users..." />
       ) : error ? (
         <ErrorState message={error} onRetry={refresh} />
-      ) : users.length === 0 ? (
+      ) : filteredUsers.length === 0 ? (
         <EmptyState title="No users found" message="Users will appear here once they have roles assigned." />
       ) : (
+        <>
         <Table headers={['Name', 'Email', 'Roles', 'Actions']}>
-          {users.map((u) => (
+          {paged.map((u) => (
             <TableRow key={u.userId}>
               <TableCell className="font-medium text-slate-900 dark:text-white">
                 {u.member?.full_name ?? 'Unknown user'}
@@ -207,6 +222,8 @@ export default function UserManagement() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal

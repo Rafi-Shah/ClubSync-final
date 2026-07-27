@@ -54,6 +54,7 @@ export default function GalleryCMS() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteName, setDeleteName] = useState('');
@@ -81,6 +82,7 @@ export default function GalleryCMS() {
   function openAdd() {
     setEditingId(null);
     setForm(emptyForm);
+    setFormError(null);
     setModalOpen(true);
   }
 
@@ -93,21 +95,28 @@ export default function GalleryCMS() {
       description: item.description ?? '',
       sort_order: item.sort_order ?? 0,
     });
+    setFormError(null);
     setModalOpen(true);
   }
 
   async function handleSave() {
+    setFormError(null);
+    if (!form.image_url) {
+      setFormError('Please upload an image before saving.');
+      return;
+    }
     setSaving(true);
     try {
+      const payload = { ...form, category: form.category || 'general' };
       if (editingId) {
-        await updateGalleryItem(editingId, { ...form });
+        await updateGalleryItem(editingId, payload);
       } else {
-        await createGalleryItem({ ...form });
+        await createGalleryItem(payload);
       }
       setModalOpen(false);
       await refresh();
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save gallery item.');
+      setFormError(e.message ?? 'Failed to save gallery item.');
     } finally {
       setSaving(false);
     }
@@ -209,6 +218,9 @@ export default function GalleryCMS() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Image' : 'Add Image'}>
         <div className="space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <Input
             label="Title"
             value={form.title}

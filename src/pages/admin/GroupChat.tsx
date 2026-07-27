@@ -71,7 +71,9 @@ export default function GroupChat() {
     setError(null);
     try {
       const [convs, mems] = await Promise.all([getConversations(), getAllMembers()]);
-      const groupConvs = (convs as Conversation[]).filter((c) => c.conversation_type === 'group');
+      // 'team' is the DB-valid conversation_type used for group chats (see
+      // createGroupChat in adminApi.ts — 'group' was never a valid value).
+      const groupConvs = (convs as Conversation[]).filter((c) => c.conversation_type === 'team');
       setConversations(groupConvs);
       setMembers(mems as Member[]);
     } catch (e: any) {

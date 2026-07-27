@@ -12,6 +12,8 @@ import {
   TextArea,
   Input,
   formatDateTime,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -164,6 +166,7 @@ export default function ResourceBooking() {
   const filtered = bookings.filter(
     (b) => statusFilter === 'all' || b.status === statusFilter
   );
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filtered, 10);
 
   const total = bookings.length;
   const pending = bookings.filter((b) => b.status === 'pending').length;
@@ -208,8 +211,9 @@ export default function ResourceBooking() {
       ) : filtered.length === 0 ? (
         <EmptyState title="No bookings" message="Create a booking to reserve an inventory item." />
       ) : (
+        <>
         <Table headers={['Item', 'Member', 'Purpose', 'Start', 'End', 'Status', 'Actions']}>
-          {filtered.map((b) => (
+          {paged.map((b) => (
             <TableRow key={b.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">{b.item?.name ?? '—'}</TableCell>
               <TableCell>{b.member?.full_name ?? '—'}</TableCell>
@@ -250,6 +254,8 @@ export default function ResourceBooking() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="New Booking">

@@ -13,6 +13,8 @@ import {
   TextArea,
   formatDate,
   formatDateTime,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -67,6 +69,7 @@ export default function EventsAdmin() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<EventItem | null>(null);
 
@@ -93,6 +96,7 @@ export default function EventsAdmin() {
   const openAdd = () => {
     setEditingId(null);
     setForm({ ...emptyForm });
+    setFormError(null);
     setModalOpen(true);
   };
 
@@ -110,18 +114,44 @@ export default function EventsAdmin() {
       cover_image_url: ev.cover_image_url ?? '',
       organized_by_member_id: ev.organized_by_member_id ?? '',
     });
+    setFormError(null);
     setModalOpen(true);
   };
 
   const handleSave = async () => {
+    setFormError(null);
+    if (!form.title.trim()) {
+      setFormError('Please enter a title.');
+      return;
+    }
+    if (!form.start_at) {
+      setFormError('Please set a start date/time.');
+      return;
+    }
+    if (form.end_at && new Date(form.end_at) < new Date(form.start_at)) {
+      setFormError('End time cannot be before the start time.');
+      return;
+    }
+    // slug is NOT NULL + UNIQUE in the DB; auto-derive one from the title
+    // rather than send an empty string, which would either violate the
+    // constraint or collide with another event's empty slug.
+    const slug = (form.slug || form.title)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    if (!slug) {
+      setFormError('Please enter a title or a slug.');
+      return;
+    }
     setSaving(true);
     try {
       const payload: Record<string, any> = {
         title: form.title,
-        slug: form.slug || null,
+        slug,
         description: form.description || null,
         location: form.location || null,
-        start_at: form.start_at ? new Date(form.start_at).toISOString() : null,
+        start_at: new Date(form.start_at).toISOString(),
         end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
         status: form.status,
         is_public: form.is_public,
@@ -136,7 +166,7 @@ export default function EventsAdmin() {
       setModalOpen(false);
       await refresh();
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save event');
+      setFormError(e.message ?? 'Failed to save event');
     } finally {
       setSaving(false);
     }
@@ -161,6 +191,7 @@ export default function EventsAdmin() {
     if (statusFilter === 'draft') return ev.status === 'draft';
     return true;
   });
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filtered, 10);
 
   const counts = {
     upcoming: events.filter((ev) => ev.start_at ? new Date(ev.start_at) >= now : false).length,
@@ -209,8 +240,9 @@ export default function EventsAdmin() {
       ) : filtered.length === 0 ? (
         <EmptyState title="No events found" message="Create a new event to get started." />
       ) : (
+        <>
         <Table headers={['Title', 'Organizer', 'Start', 'Status', 'Public', 'Actions']}>
-          {filtered.map((ev) => (
+          {paged.map((ev) => (
             <TableRow key={ev.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">{ev.title}</TableCell>
               <TableCell>{ev.organizer?.full_name ?? '—'}</TableCell>
@@ -232,12 +264,17 @@ export default function EventsAdmin() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Event' : 'Add Event'}>
         <div className="space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title" />
-          <Input label="Slug" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="url-friendly-slug" />
+          <Input label="Slug (optional, auto-generated from title)" value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="url-friendly-slug" />
           <TextArea label="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} placeholder="Event description" />
           <Input label="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

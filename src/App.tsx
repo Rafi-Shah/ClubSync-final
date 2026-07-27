@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import PublicLayout from './components/PublicLayout';
 import MemberLayout from './components/member/MemberLayout';
 import AdminLayout from './components/admin/AdminLayout';
+import RequirePermission from './components/admin/RequirePermission';
 import { LoadingState } from './components/States';
 
 // Public Website
@@ -24,6 +25,7 @@ const Login = lazy(() => import('./pages/member/Login'));
 const MemberDashboard = lazy(() => import('./pages/member/Dashboard'));
 const MyProfile = lazy(() => import('./pages/member/MyProfile'));
 const Routine = lazy(() => import('./pages/member/Routine'));
+const RoutineCSVImport = lazy(() => import('./pages/member/RoutineCSVImport'));
 const CalendarPage = lazy(() => import('./pages/member/Calendar'));
 const Tasks = lazy(() => import('./pages/member/Tasks'));
 const Attendance = lazy(() => import('./pages/member/Attendance'));
@@ -51,6 +53,7 @@ const AvailabilityChecker = lazy(() => import('./pages/admin/AvailabilityChecker
 const TaskAssignment = lazy(() => import('./pages/admin/TaskAssignment'));
 const MeetingManagement = lazy(() => import('./pages/admin/MeetingManagement'));
 const AttendanceAdmin = lazy(() => import('./pages/admin/AttendanceAdmin'));
+const PerformanceAdmin = lazy(() => import('./pages/admin/Performance'));
 const EventsAdmin = lazy(() => import('./pages/admin/EventsAdmin'));
 const Budgets = lazy(() => import('./pages/admin/Budgets'));
 const Inventory = lazy(() => import('./pages/admin/Inventory'));
@@ -103,6 +106,7 @@ export default function App() {
           <Route index element={<MemberDashboard />} />
           <Route path="profile" element={<MyProfile />} />
           <Route path="routine" element={<Routine />} />
+          <Route path="routine/import" element={<RoutineCSVImport />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="attendance" element={<Attendance />} />
@@ -121,32 +125,36 @@ export default function App() {
         {/* Admin Portal */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
-          <Route path="ai" element={<AIAssistant />} />
+          <Route path="profile" element={<MyProfile />} />
+          <Route path="notifications" element={<Notifications />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="ai" element={<RequirePermission slug="ai.use"><AIAssistant /></RequirePermission>} />
           <Route path="analytics" element={<Analytics />} />
-          <Route path="reports" element={<Reports />} />
-          <Route path="activity-logs" element={<ActivityLogs />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="members" element={<MemberManagement />} />
-          <Route path="executives" element={<ExecutiveManagement />} />
-          <Route path="recruitment" element={<RecruitmentAdmin />} />
-          <Route path="roles" element={<RoleManagement />} />
-          <Route path="departments" element={<DepartmentsAdmin />} />
-          <Route path="teams" element={<TeamsAdmin />} />
+          <Route path="reports" element={<RequirePermission slug="reports.view"><Reports /></RequirePermission>} />
+          <Route path="activity-logs" element={<RequirePermission slug="logs.view"><ActivityLogs /></RequirePermission>} />
+          <Route path="users" element={<RequirePermission slug="users.manage"><UserManagement /></RequirePermission>} />
+          <Route path="members" element={<RequirePermission slug="members.view"><MemberManagement /></RequirePermission>} />
+          <Route path="executives" element={<RequirePermission slug="executives.view"><ExecutiveManagement /></RequirePermission>} />
+          <Route path="recruitment" element={<RequirePermission slug="recruitment.view"><RecruitmentAdmin /></RequirePermission>} />
+          <Route path="roles" element={<RequirePermission slug="roles.manage"><RoleManagement /></RequirePermission>} />
+          <Route path="departments" element={<RequirePermission slug="departments.view"><DepartmentsAdmin /></RequirePermission>} />
+          <Route path="teams" element={<RequirePermission slug="teams.view"><TeamsAdmin /></RequirePermission>} />
           <Route path="routines" element={<RoutineManagement />} />
           <Route path="availability" element={<AvailabilityChecker />} />
-          <Route path="tasks" element={<TaskAssignment />} />
-          <Route path="meetings" element={<MeetingManagement />} />
-          <Route path="attendance" element={<AttendanceAdmin />} />
-          <Route path="events" element={<EventsAdmin />} />
-          <Route path="budgets" element={<Budgets />} />
-          <Route path="inventory" element={<Inventory />} />
+          <Route path="tasks" element={<RequirePermission slug="tasks.view"><TaskAssignment /></RequirePermission>} />
+          <Route path="meetings" element={<RequirePermission slug="meetings.view"><MeetingManagement /></RequirePermission>} />
+          <Route path="attendance" element={<RequirePermission slug="attendance.view"><AttendanceAdmin /></RequirePermission>} />
+          <Route path="performance" element={<PerformanceAdmin />} />
+          <Route path="events" element={<RequirePermission slug="events.view"><EventsAdmin /></RequirePermission>} />
+          <Route path="budgets" element={<RequirePermission slug="budgets.view"><Budgets /></RequirePermission>} />
+          <Route path="inventory" element={<RequirePermission slug="inventory.view"><Inventory /></RequirePermission>} />
           <Route path="bookings" element={<ResourceBooking />} />
-          <Route path="certificates" element={<CertificateGenerator />} />
-          <Route path="gallery" element={<GalleryCMS />} />
-          <Route path="cms" element={<WebsiteCMS />} />
+          <Route path="certificates" element={<RequirePermission slug="certificates.manage"><CertificateGenerator /></RequirePermission>} />
+          <Route path="gallery" element={<RequirePermission slug="cms.manage"><GalleryCMS /></RequirePermission>} />
+          <Route path="cms" element={<RequirePermission slug="cms.manage"><WebsiteCMS /></RequirePermission>} />
           <Route path="import-export" element={<ImportExport />} />
           <Route path="chat" element={<LiveChat />} />
-          <Route path="broadcast" element={<Broadcast />} />
+          <Route path="broadcast" element={<RequirePermission slug="broadcasts.send"><Broadcast /></RequirePermission>} />
           <Route path="groups" element={<GroupChat />} />
         </Route>
 

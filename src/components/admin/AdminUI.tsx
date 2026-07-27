@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from 'react';
+
 interface PageTitleProps {
   title: string;
   subtitle?: string;
@@ -180,4 +182,73 @@ export function formatDate(date: string | null | undefined): string {
 export function formatDateTime(date: string | null | undefined): string {
   if (!date) return '—';
   return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// Shared client-side pagination: every table's data already comes from the
+// database (Load) and is already narrowed by search/filter before reaching
+// here — this hook just slices that already-DB-sourced array into pages so
+// large tables don't render hundreds of rows at once.
+export function usePagination<T>(items: T[], pageSize = 10) {
+  const [page, setPage] = useState(1);
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+
+  // If a new search/filter shrinks the result set below the page we were
+  // on, snap back to page 1 instead of showing an empty page.
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages]);
+
+  const paged = useMemo(
+    () => items.slice((page - 1) * pageSize, page * pageSize),
+    [items, page, pageSize]
+  );
+
+  return { page, setPage, totalPages, paged, pageSize, totalItems: items.length };
+}
+
+export function Pagination({
+  page,
+  totalPages,
+  onPageChange,
+  totalItems,
+  pageSize,
+}: {
+  page: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  totalItems?: number;
+  pageSize?: number;
+}) {
+  if (totalPages <= 1) return null;
+  const start = totalItems != null && pageSize ? (page - 1) * pageSize + 1 : null;
+  const end = totalItems != null && pageSize ? Math.min(page * pageSize, totalItems) : null;
+
+  return (
+    <div className="flex items-center justify-between mt-4 text-sm flex-wrap gap-3">
+      <span className="text-slate-500 dark:text-slate-400">
+        {start != null && end != null
+          ? `Showing ${start}–${end} of ${totalItems}`
+          : `Page ${page} of ${totalPages}`}
+      </span>
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => onPageChange(page - 1)}
+          disabled={page <= 1}
+          className="btn-outline px-3 py-1 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Previous
+        </button>
+        <span className="text-slate-600 dark:text-slate-300">
+          {page} / {totalPages}
+        </span>
+        <button
+          onClick={() => onPageChange(page + 1)}
+          disabled={page >= totalPages}
+          className="btn-outline px-3 py-1 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
 }

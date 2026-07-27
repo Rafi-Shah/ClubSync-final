@@ -14,6 +14,7 @@ export default function VolunteerHours() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ activity_description: '', hours: '1', activity_date: new Date().toISOString().slice(0, 10), event_id: '' });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const load = async () => {
     if (!member) return;
@@ -36,19 +37,39 @@ export default function VolunteerHours() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!member) return;
+    setFormError(null);
+    const parsedHours = parseFloat(form.hours);
+    if (!form.activity_description.trim()) {
+      setFormError('Please describe the activity.');
+      return;
+    }
+    if (!Number.isFinite(parsedHours) || parsedHours <= 0) {
+      setFormError('Hours must be a positive number.');
+      return;
+    }
+    if (!form.activity_date) {
+      setFormError('Please pick a date.');
+      return;
+    }
     setSaving(true);
     try {
-      await supabase.from('volunteer_hours').insert({
+      // supabase-js does NOT throw on a failed insert — it returns
+      // { error } instead. Without checking it, a failed submission was
+      // silently reported as a success.
+      const { error: insertError } = await supabase.from('volunteer_hours').insert({
         member_id: member.id,
         activity_description: form.activity_description,
-        hours: parseFloat(form.hours),
+        hours: parsedHours,
         activity_date: form.activity_date,
         event_id: form.event_id || null,
       });
+      if (insertError) throw insertError;
       setForm({ activity_description: '', hours: '1', activity_date: new Date().toISOString().slice(0, 10), event_id: '' });
       setShowForm(false);
       await load();
-    } catch { setError(true); }
+    } catch (err: any) {
+      setFormError(err.message ?? 'Failed to log hours. Please try again.');
+    }
     finally { setSaving(false); }
   };
 
@@ -69,6 +90,9 @@ export default function VolunteerHours() {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="card p-6 mb-6 space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <div>
             <label className="label">Activity Description *</label>
             <input type="text" required value={form.activity_description} onChange={(e) => setForm({ ...form, activity_description: e.target.value })} className="input" placeholder="Community outreach at local school" />

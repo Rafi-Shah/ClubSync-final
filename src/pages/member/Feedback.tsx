@@ -15,6 +15,7 @@ export default function Feedback() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ feedback_type: 'general', subject: '', body: '', rating: 5, related_event_id: '', related_meeting_id: '', is_anonymous: false });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const load = async () => {
     if (!member) return;
@@ -30,9 +31,18 @@ export default function Feedback() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!member) return;
+    setFormError(null);
+    if (!form.subject.trim() || !form.body.trim()) {
+      setFormError('Please fill in both the subject and your feedback.');
+      return;
+    }
     setSaving(true);
     try {
-      await supabase.from('feedback').insert({
+      // supabase-js does NOT throw on a failed insert — it returns
+      // { error } instead. Without checking it, an RLS violation or
+      // constraint error was silently swallowed and the form reported
+      // success even though nothing was saved.
+      const { error: insertError } = await supabase.from('feedback').insert({
         member_id: member.id,
         feedback_type: form.feedback_type,
         subject: form.subject,
@@ -42,10 +52,13 @@ export default function Feedback() {
         related_meeting_id: form.related_meeting_id || null,
         is_anonymous: form.is_anonymous,
       });
+      if (insertError) throw insertError;
       setForm({ feedback_type: 'general', subject: '', body: '', rating: 5, related_event_id: '', related_meeting_id: '', is_anonymous: false });
       setShowForm(false);
       await load();
-    } catch { setError(true); }
+    } catch (err: any) {
+      setFormError(err.message ?? 'Failed to submit feedback. Please try again.');
+    }
     finally { setSaving(false); }
   };
 
@@ -60,6 +73,9 @@ export default function Feedback() {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="card p-6 mb-6 space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Type</label>

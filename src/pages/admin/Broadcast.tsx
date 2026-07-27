@@ -10,6 +10,8 @@ import {
   Badge,
   formatDate,
   formatDateTime,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -20,6 +22,12 @@ import {
 
 interface Member {
   id: string;
+  // The auth.users id — this, not `id`, is what notifications.user_id's
+  // foreign key actually points to. Broadcasting used to send `id` (the
+  // members table's own primary key) and hit
+  // "violates foreign key constraint notifications_user_id_fkey" for any
+  // member whose members.id didn't coincidentally match an auth.users.id.
+  user_id: string | null;
   full_name: string;
   email: string;
   status: string | null;
@@ -58,7 +66,11 @@ export default function Broadcast() {
     setError(null);
     try {
       const [m, n] = await Promise.all([getAllMembers(), getAllNotifications()]);
-      setMembers(m as Member[]);
+      // Only members with a linked login account can receive a notification
+      // (notifications.user_id is a foreign key to auth.users) — members
+      // without one (e.g. imported/placeholder rows) are filtered out of
+      // the picker rather than silently failing to send on click.
+      setMembers((m as Member[]).filter((mem) => !!mem.user_id));
       setNotifications((n as Notification[]).filter((notif) => notif.type === 'announcement'));
     } catch (e: any) {
       setError(e.message ?? 'Failed to load data.');
@@ -73,15 +85,17 @@ export default function Broadcast() {
     })();
   }, []);
 
-  function toggleMember(id: string) {
+  // Selection is keyed by user_id (the auth id notifications actually need),
+  // not the member's own primary key.
+  function toggleMember(userId: string) {
     const next = new Set(selectedIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
+    if (next.has(userId)) next.delete(userId);
+    else next.add(userId);
     setSelectedIds(next);
   }
 
   function selectAll() {
-    setSelectedIds(new Set(members.map((m) => m.id)));
+    setSelectedIds(new Set(members.map((m) => m.user_id!)));
   }
 
   function deselectAll() {
@@ -114,6 +128,19 @@ export default function Broadcast() {
   }
 
   const allSelected = members.length > 0 && selectedIds.size === members.length;
+
+  // Group by title+body+created_at to show unique broadcasts (one row per
+  // send, not one row per recipient)
+  const groupedBroadcasts = (() => {
+    const seen = new Map<string, Notification[]>();
+    for (const n of notifications) {
+      const key = `${n.title}__${n.body}__${n.created_at}`;
+      if (!seen.has(key)) seen.set(key, []);
+      seen.get(key)!.push(n);
+    }
+    return Array.from(seen.entries());
+  })();
+  const broadcastsPagination = usePagination(groupedBroadcasts, 10);
 
   return (
     <div>
@@ -191,7 +218,7 @@ export default function Broadcast() {
                     <p className="p-4 text-sm text-slate-500 dark:text-slate-400 text-center">No members found.</p>
                   ) : (
                     members.map((member) => {
-                      const checked = selectedIds.has(member.id);
+                      const checked = selectedIds.has(member.user_id!);
                       return (
                         <label
                           key={member.id}
@@ -200,7 +227,7 @@ export default function Broadcast() {
                           <input
                             type="checkbox"
                             checked={checked}
-                            onChange={() => toggleMember(member.id)}
+                            onChange={() => toggleMember(member.user_id!)}
                             className="w-4 h-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
                           />
                           <div className="flex-1 min-w-0">
@@ -238,39 +265,39 @@ export default function Broadcast() {
             {notifications.length === 0 ? (
               <EmptyState title="No broadcasts sent" message="Sent announcements will appear here." />
             ) : (
+              <>
               <Table headers={['Title', 'Body', 'Recipients', 'Date', 'Status']}>
-                {(() => {
-                  // Group by title+body+created_at to show unique broadcasts
-                  const seen = new Map<string, Notification[]>();
-                  for (const n of notifications) {
-                    const key = `${n.title}__${n.body}__${n.created_at}`;
-                    if (!seen.has(key)) seen.set(key, []);
-                    seen.get(key)!.push(n);
-                  }
-                  return Array.from(seen.entries()).map(([key, group]) => {
-                    const first = group[0];
-                    return (
-                      <TableRow key={key}>
-                        <TableCell className="font-medium text-slate-900 dark:text-white">{first.title}</TableCell>
-                        <TableCell>
-                          <span className="line-clamp-1 max-w-xs">{first.body}</span>
-                        </TableCell>
-                        <TableCell>{group.length}</TableCell>
-                        <TableCell className="whitespace-nowrap">{formatDateTime(first.created_at)}</TableCell>
-                        <TableCell>
-                          {group.every((n) => n.is_read) ? (
-                            <Badge status="completed" />
-                          ) : group.some((n) => n.is_read) ? (
-                            <Badge status="in_progress" />
-                          ) : (
-                            <Badge status="pending" />
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  });
-                })()}
+                {broadcastsPagination.paged.map(([key, group]) => {
+                  const first = group[0];
+                  return (
+                    <TableRow key={key}>
+                      <TableCell className="font-medium text-slate-900 dark:text-white">{first.title}</TableCell>
+                      <TableCell>
+                        <span className="line-clamp-1 max-w-xs">{first.body}</span>
+                      </TableCell>
+                      <TableCell>{group.length}</TableCell>
+                      <TableCell className="whitespace-nowrap">{formatDateTime(first.created_at)}</TableCell>
+                      <TableCell>
+                        {group.every((n) => n.is_read) ? (
+                          <Badge status="completed" />
+                        ) : group.some((n) => n.is_read) ? (
+                          <Badge status="in_progress" />
+                        ) : (
+                          <Badge status="pending" />
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </Table>
+              <Pagination
+                page={broadcastsPagination.page}
+                totalPages={broadcastsPagination.totalPages}
+                onPageChange={broadcastsPagination.setPage}
+                totalItems={broadcastsPagination.totalItems}
+                pageSize={broadcastsPagination.pageSize}
+              />
+              </>
             )}
           </div>
         </div>

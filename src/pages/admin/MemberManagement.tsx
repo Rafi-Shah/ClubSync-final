@@ -11,9 +11,11 @@ import {
   Select,
   TextArea,
   formatDate,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
-import { getAllMembers, updateMember, deleteMember } from '../../lib/adminApi';
+import { getAllMembers, updateMember, deleteMember, updateMemberEmail } from '../../lib/adminApi';
 
 interface Member {
   id: string;
@@ -65,6 +67,8 @@ export default function MemberManagement() {
     return matchesSearch && matchesStatus;
   });
 
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filtered, 10);
+
   function openEdit(m: Member) {
     setEditMember(m);
     setForm({
@@ -80,9 +84,17 @@ export default function MemberManagement() {
     if (!editMember) return;
     setSaving(true);
     try {
+      // Email changed → update the login (auth) email and members.email
+      // together via the Edge Function first, so the two never fall out of
+      // sync (this is what previously let the directory show a new email
+      // while login still required the old one).
+      if (form.email !== editMember.email) {
+        await updateMemberEmail(editMember.id, form.email);
+      }
+      // All other fields go through the normal update. Email is omitted
+      // here since it was already handled above (or unchanged).
       await updateMember(editMember.id, {
         full_name: form.full_name,
-        email: form.email,
         phone: form.phone || null,
         status: form.status,
         bio: form.bio || null,
@@ -140,8 +152,9 @@ export default function MemberManagement() {
       ) : filtered.length === 0 ? (
         <EmptyState title="No members found" message="Try adjusting your search or filters." />
       ) : (
+        <>
         <Table headers={['Name', 'Email', 'Phone', 'Status', 'Joined', 'Actions']}>
-          {filtered.map((m) => (
+          {paged.map((m) => (
             <TableRow key={m.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">{m.full_name}</TableCell>
               <TableCell>{m.email}</TableCell>
@@ -162,6 +175,8 @@ export default function MemberManagement() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal open={!!editMember} onClose={() => setEditMember(null)} title="Edit Member">

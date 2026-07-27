@@ -11,6 +11,7 @@ export default function Tasks() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [filter, setFilter] = useState('all');
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!member) return;
@@ -23,9 +24,18 @@ export default function Tasks() {
   }, [tasks, filter]);
 
   const updateStatus = async (id: string, status: string) => {
+    setUpdateError(null);
     const updates: any = { status };
     if (status === 'completed') updates.completed_at = new Date().toISOString();
-    await supabase.from('tasks').update(updates).eq('id', id);
+    // supabase-js does NOT throw on a failed update — it returns { error }
+    // instead. Without checking it, the local state below was updated
+    // optimistically regardless of whether the write actually succeeded,
+    // so the UI could show "Completed" while the DB still had "Pending".
+    const { error: updateErr } = await supabase.from('tasks').update(updates).eq('id', id);
+    if (updateErr) {
+      setUpdateError('Failed to update task status. Please try again.');
+      return;
+    }
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   };
 
@@ -37,6 +47,10 @@ export default function Tasks() {
   return (
     <div>
       <PageTitle title="My Tasks" subtitle="Tasks assigned to you" />
+
+      {updateError && (
+        <p className="text-sm text-red-600 dark:text-red-400 mb-4">{updateError}</p>
+      )}
 
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         {filters.map(f => (

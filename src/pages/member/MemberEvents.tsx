@@ -11,6 +11,7 @@ export default function MemberEvents() {
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const load = async () => {
     if (!member) return;
@@ -29,13 +30,33 @@ export default function MemberEvents() {
 
   const handleRegister = async (eventId: string) => {
     if (!member) return;
-    await supabase.from('event_registrations').insert({ event_id: eventId, member_id: member.id, status: 'registered' });
+    setActionError(null);
+    // supabase-js does NOT throw on a failed insert — it returns { error }
+    // instead. Without checking it, a failed registration (e.g. a
+    // duplicate, or an RLS issue) looked identical to a successful one:
+    // the button just did nothing, with no explanation.
+    const { error: regError } = await supabase
+      .from('event_registrations')
+      .insert({ event_id: eventId, member_id: member.id, status: 'registered' });
+    if (regError) {
+      setActionError('Failed to register for this event. Please try again.');
+      return;
+    }
     await load();
   };
 
   const handleCancel = async (eventId: string) => {
     if (!member) return;
-    await supabase.from('event_registrations').update({ status: 'cancelled' }).eq('event_id', eventId).eq('member_id', member.id);
+    setActionError(null);
+    const { error: cancelError } = await supabase
+      .from('event_registrations')
+      .update({ status: 'cancelled' })
+      .eq('event_id', eventId)
+      .eq('member_id', member.id);
+    if (cancelError) {
+      setActionError('Failed to cancel your registration. Please try again.');
+      return;
+    }
     await load();
   };
 
@@ -45,6 +66,10 @@ export default function MemberEvents() {
   return (
     <div>
       <PageTitle title="Events" subtitle="Browse and register for upcoming events" />
+
+      {actionError && (
+        <p className="text-sm text-red-600 dark:text-red-400 mb-4">{actionError}</p>
+      )}
 
       {events.length === 0 ? (
         <EmptyState title="No upcoming events" message="Check back later for new events." />

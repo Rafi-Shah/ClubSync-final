@@ -11,6 +11,8 @@ import {
   Select,
   TextArea,
   formatDate,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -56,6 +58,7 @@ const emptyForm = {
 
 export default function Recruitment() {
   const [tab, setTab] = useState<'postings' | 'applications'>('postings');
+  const [appSearch, setAppSearch] = useState('');
   const [recruitments, setRecruitments] = useState<Recruitment[]>([]);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
@@ -171,6 +174,17 @@ export default function Recruitment() {
     }
   }
 
+  const filteredApplications = applications.filter((app) => {
+    const q = appSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      app.applicant_name?.toLowerCase().includes(q) ||
+      app.applicant_email?.toLowerCase().includes(q)
+    );
+  });
+  const recruitmentsPagination = usePagination(recruitments, 10);
+  const applicationsPagination = usePagination(filteredApplications, 10);
+
   return (
     <div>
       <PageTitle
@@ -219,8 +233,9 @@ export default function Recruitment() {
         recruitments.length === 0 ? (
           <EmptyState title="No job postings" message="Create a job posting to start recruiting." />
         ) : (
+          <>
           <Table headers={['Title', 'Status', 'Open Date', 'Close Date', 'Actions']}>
-            {recruitments.map((r) => (
+            {recruitmentsPagination.paged.map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="font-medium text-slate-900 dark:text-white">{r.title}</TableCell>
                 <TableCell><Badge status={r.status} /></TableCell>
@@ -240,24 +255,48 @@ export default function Recruitment() {
               </TableRow>
             ))}
           </Table>
+          <Pagination
+            page={recruitmentsPagination.page}
+            totalPages={recruitmentsPagination.totalPages}
+            onPageChange={recruitmentsPagination.setPage}
+            totalItems={recruitmentsPagination.totalItems}
+            pageSize={recruitmentsPagination.pageSize}
+          />
+          </>
         )
-      ) : applications.length === 0 ? (
-        <EmptyState title="No applications" message="Applications will appear here once submitted." />
       ) : (
-        <Table headers={['Applicant', 'Email', 'Phone', 'Position', 'Status', 'Actions']}>
-          {applications.map((app) => (
-            <TableRow key={app.id}>
-              <TableCell className="font-medium text-slate-900 dark:text-white">{app.applicant_name}</TableCell>
-              <TableCell>{app.applicant_email}</TableCell>
-              <TableCell>{app.applicant_phone || '—'}</TableCell>
-              <TableCell>{app.recruitment?.title ?? '—'}</TableCell>
-              <TableCell><Badge status={app.status} /></TableCell>
-              <TableCell>
-                <button onClick={() => openReview(app)} className="btn-outline text-sm">Review</button>
-              </TableCell>
-            </TableRow>
-          ))}
-        </Table>
+        <>
+        <div className="mb-4 w-full sm:w-64">
+          <Input label="Search" placeholder="Search by name or email..." value={appSearch} onChange={(e) => setAppSearch(e.target.value)} />
+        </div>
+        {filteredApplications.length === 0 ? (
+          <EmptyState title="No applications" message="Applications will appear here once submitted." />
+        ) : (
+          <>
+          <Table headers={['Applicant', 'Email', 'Phone', 'Position', 'Status', 'Actions']}>
+            {applicationsPagination.paged.map((app) => (
+              <TableRow key={app.id}>
+                <TableCell className="font-medium text-slate-900 dark:text-white">{app.applicant_name}</TableCell>
+                <TableCell>{app.applicant_email}</TableCell>
+                <TableCell>{app.applicant_phone || '—'}</TableCell>
+                <TableCell>{app.recruitment?.title ?? '—'}</TableCell>
+                <TableCell><Badge status={app.status} /></TableCell>
+                <TableCell>
+                  <button onClick={() => openReview(app)} className="btn-outline text-sm">Review</button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </Table>
+          <Pagination
+            page={applicationsPagination.page}
+            totalPages={applicationsPagination.totalPages}
+            onPageChange={applicationsPagination.setPage}
+            totalItems={applicationsPagination.totalItems}
+            pageSize={applicationsPagination.pageSize}
+          />
+          </>
+        )}
+        </>
       )}
 
       {/* Add/Edit Posting Modal */}

@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-const adminRoleSlugs = ['super_admin', 'faculty_advisor', 'president', 'vice_president', 'secretary', 'executive'];
-
 export default function Login() {
-  const { signIn, user, roles, loading, profileLoading } = useAuth();
+  const { signIn, user, hasPermission, loading, profileLoading } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -13,14 +11,15 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    // Wait for the roles fetch to actually finish (profileLoading), then
-    // redirect regardless of whether roles came back empty — previously
-    // this required roles.length > 0, so a signed-in user with no roles
-    // assigned was left stuck on the login screen forever.
+    // Wait for the roles/permissions fetch to actually finish
+    // (profileLoading), then redirect regardless of whether roles came
+    // back empty — previously this required roles.length > 0, so a
+    // signed-in user with no roles assigned was left stuck on the login
+    // screen forever. portal.admin is the actual permission
+    // RoleManagement grants/revokes, not just a hardcoded role-slug list.
     if (loading || profileLoading || !user) return;
-    const isAdmin = roles.some(r => adminRoleSlugs.includes(r.slug));
-    navigate(isAdmin ? '/admin' : '/portal', { replace: true });
-  }, [loading, profileLoading, user, roles, navigate]);
+    navigate(hasPermission('portal.admin') ? '/admin' : '/portal', { replace: true });
+  }, [loading, profileLoading, user, hasPermission, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

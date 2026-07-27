@@ -1,5 +1,27 @@
 import { supabase } from '../lib/supabase';
 
+// ============ ACTIVITY LOGGING ============
+// activity_logs previously had no insert path anywhere in the codebase —
+// getActivityLogs() only reads. This fires a best-effort log row on every
+// mutating admin action below. It never throws or blocks the calling
+// function: if logging fails (e.g. a transient network hiccup), the actual
+// action the admin performed still succeeds and isn't rolled back for it.
+async function logActivity(action: string, entityType: string, entityId: string | null, description: string) {
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    await supabase.from('activity_logs').insert({
+      user_id: userData?.user?.id ?? null,
+      portal: 'admin',
+      action,
+      entity_type: entityType,
+      entity_id: entityId,
+      description,
+    });
+  } catch {
+    // Logging must never break the actual admin action — swallow silently.
+  }
+}
+
 // ============ MEMBERS ============
 export async function getAllMembers() {
   const { data, error } = await supabase
@@ -13,11 +35,13 @@ export async function getAllMembers() {
 export async function updateMember(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('members').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'member', id, `Updated member profile`);
 }
 
 export async function deleteMember(id: string) {
   const { error } = await supabase.from('members').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'member', id, `Deleted member`);
 }
 
 // ============ USERS (auth) ============
@@ -80,18 +104,50 @@ export async function createUserAccount(input: {
     throw new Error(message);
   }
   if (data?.error) throw new Error(data.error);
+  logActivity('create', 'member', data?.member_id ?? null, `Created account for ${input.full_name} (${input.email})`);
   return data;
 }
 
 export async function assignRole(userId: string, roleId: number) {
   const { error } = await supabase.from('user_roles').insert({ user_id: userId, role_id: roleId });
   if (error) throw error;
+  logActivity('update', 'user_role', userId, `Assigned role ${roleId} to user`);
 }
 
 export async function removeRole(userId: string, roleId: number) {
   const { error } = await supabase.from('user_roles').delete()
     .eq('user_id', userId).eq('role_id', roleId);
   if (error) throw error;
+  logActivity('update', 'user_role', userId, `Removed role ${roleId} from user`);
+}
+
+// ============ MEMBER EMAIL (auth-synced) ============
+// Changing a member's login email requires the Supabase Admin API
+// (auth.admin.updateUserById), which only works with the service role key —
+// client-side code can't call it directly. This invokes an Edge Function
+// that updates both auth.users.email and members.email together, so they
+// never drift out of sync (which is what caused "email changed in the
+// directory but login still uses the old address").
+export async function updateMemberEmail(memberId: string, newEmail: string) {
+  const { data, error } = await supabase.functions.invoke('update-member-email', {
+    body: { member_id: memberId, new_email: newEmail },
+  });
+  if (error) {
+    let message = error.message;
+    const ctx = (error as any)?.context;
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const body = await ctx.json();
+        if (body?.error) message = body.error;
+      } catch {
+        // response body wasn't JSON — fall back to the generic message
+      }
+    }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(data.error);
+  logActivity('update', 'member', memberId, `Changed login email to ${newEmail}`);
+  return data;
 }
 
 // ============ DEPARTMENTS ============
@@ -107,17 +163,20 @@ export async function getDepartments() {
 export async function createDepartment(input: { name: string; slug: string; description?: string | null; head_member_id?: string | null }) {
   const { data, error } = await supabase.from('departments').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'department', data?.id ?? null, `Created department "${input.name}"`);
   return data;
 }
 
 export async function updateDepartment(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('departments').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'department', id, `Updated department`);
 }
 
 export async function deleteDepartment(id: string) {
   const { error } = await supabase.from('departments').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'department', id, `Deleted department`);
 }
 
 // ============ TEAMS ============
@@ -133,17 +192,20 @@ export async function getTeams() {
 export async function createTeam(input: { department_id: string; name: string; slug: string; description?: string | null; lead_member_id?: string | null }) {
   const { data, error } = await supabase.from('teams').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'team', data?.id ?? null, `Created team "${input.name}"`);
   return data;
 }
 
 export async function updateTeam(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('teams').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'team', id, `Updated team`);
 }
 
 export async function deleteTeam(id: string) {
   const { error } = await supabase.from('teams').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'team', id, `Deleted team`);
 }
 
 // ============ EXECUTIVE COMMITTEE ============
@@ -159,17 +221,20 @@ export async function getExecutives() {
 export async function createExecutive(input: { member_id: string; position: string; term_start: string; term_end?: string | null }) {
   const { data, error } = await supabase.from('executive_committee').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'executive_committee', data?.id ?? null, `Added executive position "${input.position}"`);
   return data;
 }
 
 export async function updateExecutive(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('executive_committee').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'executive_committee', id, `Updated executive committee entry`);
 }
 
 export async function deleteExecutive(id: string) {
   const { error } = await supabase.from('executive_committee').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'executive_committee', id, `Removed executive committee entry`);
 }
 
 // ============ RECRUITMENT ============
@@ -185,17 +250,20 @@ export async function getRecruitments() {
 export async function createRecruitment(input: { title: string; slug: string; description?: string | null; requirements?: string | null; open_at: string; close_at?: string | null; status: string }) {
   const { data, error } = await supabase.from('recruitments').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'recruitment', data?.id ?? null, `Created recruitment drive "${input.title}"`);
   return data;
 }
 
 export async function updateRecruitment(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('recruitments').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'recruitment', id, `Updated recruitment drive`);
 }
 
 export async function deleteRecruitment(id: string) {
   const { error } = await supabase.from('recruitments').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'recruitment', id, `Deleted recruitment drive`);
 }
 
 export async function getApplications() {
@@ -210,6 +278,7 @@ export async function getApplications() {
 export async function updateApplication(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('applications').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'application', id, `Updated application status`);
 }
 
 // ============ EVENTS ============
@@ -225,17 +294,20 @@ export async function getEvents() {
 export async function createEvent(input: Record<string, any>) {
   const { data, error } = await supabase.from('events').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'event', data?.id ?? null, `Created event "${input.title ?? ''}"`);
   return data;
 }
 
 export async function updateEvent(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('events').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'event', id, `Updated event`);
 }
 
 export async function deleteEvent(id: string) {
   const { error } = await supabase.from('events').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'event', id, `Deleted event`);
 }
 
 // ============ MEETINGS ============
@@ -251,17 +323,20 @@ export async function getMeetings() {
 export async function createMeeting(input: Record<string, any>) {
   const { data, error } = await supabase.from('meetings').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'meeting', data?.id ?? null, `Scheduled meeting "${input.title ?? ''}"`);
   return data;
 }
 
 export async function updateMeeting(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('meetings').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'meeting', id, `Updated meeting`);
 }
 
 export async function deleteMeeting(id: string) {
   const { error } = await supabase.from('meetings').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'meeting', id, `Deleted meeting`);
 }
 
 // ============ TASKS ============
@@ -277,17 +352,20 @@ export async function getAllTasks() {
 export async function createTask(input: Record<string, any>) {
   const { data, error } = await supabase.from('tasks').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'task', data?.id ?? null, `Created task "${input.title ?? ''}"`);
   return data;
 }
 
 export async function updateTask(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('tasks').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'task', id, `Updated task`);
 }
 
 export async function deleteTask(id: string) {
   const { error } = await supabase.from('tasks').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'task', id, `Deleted task`);
 }
 
 // ============ ATTENDANCE ============
@@ -303,12 +381,14 @@ export async function getAllAttendance() {
 export async function createAttendance(input: Record<string, any>) {
   const { data, error } = await supabase.from('attendance').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'attendance', data?.id ?? null, `Recorded attendance`);
   return data;
 }
 
 export async function updateAttendance(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('attendance').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'attendance', id, `Updated attendance record`);
 }
 
 // ============ BUDGETS ============
@@ -324,17 +404,20 @@ export async function getBudgets() {
 export async function createBudget(input: Record<string, any>) {
   const { data, error } = await supabase.from('budgets').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'budget', data?.id ?? null, `Recorded ${input.type ?? ''} transaction of ${input.amount ?? ''}`);
   return data;
 }
 
 export async function updateBudget(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('budgets').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'budget', id, `Updated budget entry`);
 }
 
 export async function deleteBudget(id: string) {
   const { error } = await supabase.from('budgets').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'budget', id, `Deleted budget entry`);
 }
 
 // ============ INVENTORY ============
@@ -350,17 +433,20 @@ export async function getInventory() {
 export async function createInventoryItem(input: Record<string, any>) {
   const { data, error } = await supabase.from('inventory_items').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'inventory_item', data?.id ?? null, `Added inventory item "${input.name ?? ''}"`);
   return data;
 }
 
 export async function updateInventoryItem(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('inventory_items').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'inventory_item', id, `Updated inventory item`);
 }
 
 export async function deleteInventoryItem(id: string) {
   const { error } = await supabase.from('inventory_items').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'inventory_item', id, `Deleted inventory item`);
 }
 
 // ============ RESOURCE BOOKINGS ============
@@ -376,24 +462,31 @@ export async function getResourceBookings() {
 export async function createResourceBooking(input: Record<string, any>) {
   const { data, error } = await supabase.from('resource_bookings').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'resource_booking', data?.id ?? null, `Created resource booking`);
   return data;
 }
 
 export async function updateResourceBooking(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('resource_bookings').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'resource_booking', id, `Updated resource booking`);
 }
 
 export async function deleteResourceBooking(id: string) {
   const { error } = await supabase.from('resource_bookings').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'resource_booking', id, `Deleted resource booking`);
 }
 
 // ============ CERTIFICATES ============
 export async function getCertificates() {
   const { data, error } = await supabase
     .from('certificates')
-    .select('*, member:members(id, full_name), event:events(id, title)')
+    // certificates has two FKs to members (member_id and
+    // issued_by_member_id), so the embed must be disambiguated with
+    // !constraint_name or PostgREST throws "more than one relationship
+    // was found".
+    .select('*, member:members!certificates_member_id_fkey(id, full_name), event:events(id, title)')
     .order('issued_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -402,12 +495,14 @@ export async function getCertificates() {
 export async function createCertificate(input: Record<string, any>) {
   const { data, error } = await supabase.from('certificates').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'certificate', data?.id ?? null, `Issued certificate "${input.title ?? ''}"`);
   return data;
 }
 
 export async function deleteCertificate(id: string) {
   const { error } = await supabase.from('certificates').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'certificate', id, `Deleted certificate`);
 }
 
 // ============ REPORTS ============
@@ -423,12 +518,14 @@ export async function getReports() {
 export async function createReport(input: Record<string, any>) {
   const { data, error } = await supabase.from('reports').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'report', data?.id ?? null, `Generated ${input.type ?? ''} report "${input.title ?? ''}"`);
   return data;
 }
 
 export async function deleteReport(id: string) {
   const { error } = await supabase.from('reports').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'report', id, `Deleted report`);
 }
 
 // ============ ACTIVITY LOGS ============
@@ -455,17 +552,20 @@ export async function getGalleryItems() {
 export async function createGalleryItem(input: Record<string, any>) {
   const { data, error } = await supabase.from('gallery_items').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'gallery_item', data?.id ?? null, `Added gallery item`);
   return data;
 }
 
 export async function updateGalleryItem(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('gallery_items').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'gallery_item', id, `Updated gallery item`);
 }
 
 export async function deleteGalleryItem(id: string) {
   const { error } = await supabase.from('gallery_items').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'gallery_item', id, `Deleted gallery item`);
 }
 
 // ============ WEBSITE CMS ============
@@ -478,6 +578,7 @@ export async function getSiteSettings() {
 export async function updateSiteSettings(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('site_settings').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'site_settings', id, `Updated site settings`);
 }
 
 export async function getAboutBlocks() {
@@ -492,6 +593,7 @@ export async function getAboutBlocks() {
 export async function updateAboutBlock(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('about_content').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'about_content', id, `Updated about page content`);
 }
 
 export async function getAchievements() {
@@ -506,17 +608,20 @@ export async function getAchievements() {
 export async function createAchievement(input: Record<string, any>) {
   const { data, error } = await supabase.from('achievements').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'achievement', data?.id ?? null, `Added achievement`);
   return data;
 }
 
 export async function updateAchievement(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('achievements').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'achievement', id, `Updated achievement`);
 }
 
 export async function deleteAchievement(id: string) {
   const { error } = await supabase.from('achievements').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'achievement', id, `Deleted achievement`);
 }
 
 export async function getSponsors() {
@@ -531,17 +636,20 @@ export async function getSponsors() {
 export async function createSponsor(input: Record<string, any>) {
   const { data, error } = await supabase.from('sponsors').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'sponsor', data?.id ?? null, `Added sponsor "${input.name ?? ''}"`);
   return data;
 }
 
 export async function updateSponsor(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('sponsors').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'sponsor', id, `Updated sponsor`);
 }
 
 export async function deleteSponsor(id: string) {
   const { error } = await supabase.from('sponsors').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'sponsor', id, `Deleted sponsor`);
 }
 
 export async function getFaqs() {
@@ -556,17 +664,20 @@ export async function getFaqs() {
 export async function createFaq(input: Record<string, any>) {
   const { data, error } = await supabase.from('faqs').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'faq', data?.id ?? null, `Added FAQ`);
   return data;
 }
 
 export async function updateFaq(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('faqs').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'faq', id, `Updated FAQ`);
 }
 
 export async function deleteFaq(id: string) {
   const { error } = await supabase.from('faqs').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'faq', id, `Deleted FAQ`);
 }
 
 export async function getContactMessages() {
@@ -581,6 +692,7 @@ export async function getContactMessages() {
 export async function markContactMessageRead(id: string) {
   const { error } = await supabase.from('contact_messages').update({ is_read: true }).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'contact_message', id, `Marked contact message as read`);
 }
 
 // ============ ROLES & PERMISSIONS ============
@@ -588,7 +700,7 @@ export async function getRoles() {
   const { data, error } = await supabase
     .from('roles')
     .select('*')
-    .order('id');
+    .order('sort_order');
   if (error) throw error;
   return data ?? [];
 }
@@ -615,10 +727,12 @@ export async function toggleRolePermission(roleId: number, permissionId: number,
   if (enable) {
     const { error } = await supabase.from('role_permissions').insert({ role_id: roleId, permission_id: permissionId });
     if (error) throw error;
+    logActivity('update', 'role_permission', String(roleId), `Enabled permission ${permissionId} for role ${roleId}`);
   } else {
     const { error } = await supabase.from('role_permissions').delete()
       .eq('role_id', roleId).eq('permission_id', permissionId);
     if (error) throw error;
+    logActivity('update', 'role_permission', String(roleId), `Disabled permission ${permissionId} for role ${roleId}`);
   }
 }
 
@@ -657,14 +771,20 @@ export async function createBroadcast(title: string, creatorMemberId: string) {
     .insert({ conversation_type: 'broadcast', title, created_by_member_id: creatorMemberId })
     .select().single();
   if (error) throw error;
+  logActivity('create', 'conversation', data?.id ?? null, `Created broadcast conversation "${title}"`);
   return data;
 }
 
 export async function createGroupChat(title: string, creatorMemberId: string) {
+  // The conversations.conversation_type CHECK constraint only allows
+  // 'direct', 'team', 'executive', 'broadcast' — 'group' was never a valid
+  // value and always violated the constraint. 'team' is the correct type
+  // for a multi-member group conversation.
   const { data, error } = await supabase.from('conversations')
-    .insert({ conversation_type: 'group', title, created_by_member_id: creatorMemberId })
+    .insert({ conversation_type: 'team', title, created_by_member_id: creatorMemberId })
     .select().single();
   if (error) throw error;
+  logActivity('create', 'conversation', data?.id ?? null, `Created group chat "${title}"`);
   return data;
 }
 
@@ -681,6 +801,19 @@ export async function addParticipant(conversationId: string, memberId: string) {
   const { error } = await supabase.from('conversation_participants')
     .insert({ conversation_id: conversationId, member_id: memberId });
   if (error) throw error;
+  logActivity('update', 'conversation', conversationId, `Added a participant to conversation`);
+}
+export async function deleteConversation(conversationId: string) {
+  // Delete dependent rows first — in case there's no ON DELETE CASCADE set
+  // on these foreign keys, deleting the conversation directly would fail
+  // or leave orphaned messages/participants behind.
+  const { error: msgErr } = await supabase.from('messages').delete().eq('conversation_id', conversationId);
+  if (msgErr) throw msgErr;
+  const { error: partErr } = await supabase.from('conversation_participants').delete().eq('conversation_id', conversationId);
+  if (partErr) throw partErr;
+  const { error } = await supabase.from('conversations').delete().eq('id', conversationId);
+  if (error) throw error;
+  logActivity('delete', 'conversation', conversationId, `Deleted conversation`);
 }
 
 // ============ NOTIFICATIONS (broadcast) ============
@@ -688,6 +821,7 @@ export async function broadcastNotification(userIds: string[], type: string, tit
   const rows = userIds.map(uid => ({ user_id: uid, type, title, body, link }));
   const { error } = await supabase.from('notifications').insert(rows);
   if (error) throw error;
+  logActivity('create', 'notification', null, `Broadcast "${title}" sent to ${userIds.length} recipient(s)`);
 }
 
 export async function getAllNotifications() {
@@ -713,24 +847,91 @@ export async function getAllRoutines() {
 export async function createRoutine(input: Record<string, any>) {
   const { data, error } = await supabase.from('routines').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'routine', data?.id ?? null, `Added routine entry`);
   return data;
 }
 
 export async function updateRoutine(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('routines').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'routine', id, `Updated routine entry`);
 }
 
 export async function deleteRoutine(id: string) {
   const { error } = await supabase.from('routines').delete().eq('id', id);
   if (error) throw error;
+  logActivity('delete', 'routine', id, `Deleted routine entry`);
+}
+
+// ============ AVAILABILITY FINDER ============
+
+export interface AvailabilitySearchParams {
+  dayOfWeek: number;
+  startMinutes: number;
+  endMinutes: number;
+  roleSlugs?: string[];
+  departmentIds?: string[];
+  batch?: string;
+  semester?: string;
+  committeeOnly?: boolean;
+  position?: string;
+  search?: string;
+  onlyAvailable?: boolean;
+  limit?: number;
+}
+
+export interface AvailabilityResult {
+  member_id: string;
+  member_code: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  avatar_url: string | null;
+  batch: string | null;
+  semester: string | null;
+  department_names: string | null;
+  role_names: string;
+  position_title: string;
+  is_available: boolean;
+  conflict_title: string | null;
+  conflict_start: string | null;
+  conflict_end: string | null;
+}
+
+/**
+ * Wraps the find_available_members() Postgres function. The overlap
+ * computation happens inside Postgres against indexed columns — this never
+ * pulls the full routines table to the client.
+ */
+export async function findAvailableMembers(params: AvailabilitySearchParams): Promise<AvailabilityResult[]> {
+  const { data, error } = await supabase.rpc('find_available_members', {
+    p_day_of_week: params.dayOfWeek,
+    p_start_minutes: params.startMinutes,
+    p_end_minutes: params.endMinutes,
+    p_role_slugs: params.roleSlugs ?? null,
+    p_department_ids: params.departmentIds ?? null,
+    p_batch: params.batch ?? null,
+    p_semester: params.semester ?? null,
+    p_committee_only: params.committeeOnly ?? null,
+    p_position: params.position ?? null,
+    p_search: params.search ?? null,
+    p_only_available: params.onlyAvailable ?? null,
+    p_limit: params.limit ?? 200,
+  });
+  if (error) throw error;
+  return (data ?? []) as AvailabilityResult[];
 }
 
 // ============ VOLUNTEER HOURS ============
 export async function getAllVolunteerHours() {
   const { data, error } = await supabase
     .from('volunteer_hours')
-    .select('*, member:members(id, full_name), event:events(id, title)')
+    // volunteer_hours has two FKs to members (member_id and
+    // approved_by_member_id), so the embed must be disambiguated with
+    // !constraint_name or PostgREST throws "more than one relationship
+    // was found" — matching the pattern already used elsewhere in this
+    // file (tasks, events, meetings, etc.).
+    .select('*, member:members!volunteer_hours_member_id_fkey(id, full_name), event:events(id, title)')
     .order('activity_date', { ascending: false });
   if (error) throw error;
   return data ?? [];
@@ -739,6 +940,7 @@ export async function getAllVolunteerHours() {
 export async function updateVolunteerHours(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('volunteer_hours').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'volunteer_hours', id, `Updated volunteer hours entry`);
 }
 
 // ============ IDEAS ============
@@ -754,6 +956,7 @@ export async function getAllIdeas() {
 export async function updateIdea(id: string, updates: Record<string, any>) {
   const { error } = await supabase.from('ideas').update(updates).eq('id', id);
   if (error) throw error;
+  logActivity('update', 'idea', id, `Updated idea status`);
 }
 
 // ============ FEEDBACK ============
@@ -779,6 +982,7 @@ export async function getAllPerformance() {
 export async function createPerformance(input: Record<string, any>) {
   const { data, error } = await supabase.from('performance_metrics').insert(input).select().single();
   if (error) throw error;
+  logActivity('create', 'performance_metric', data?.id ?? null, `Recorded performance metric`);
   return data;
 }
 

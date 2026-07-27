@@ -71,6 +71,59 @@ export async function getMyRoutines(memberId: string) {
   return data ?? [];
 }
 
+export interface RoutineInput {
+  member_id: string;
+  title: string;
+  description?: string | null;
+  course_code?: string | null;
+  teacher?: string | null;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  location?: string | null;
+}
+
+export async function createRoutine(input: RoutineInput) {
+  const { data, error } = await supabase.from('routines').insert(input).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateMyRoutine(id: string, updates: Partial<RoutineInput> & { is_active?: boolean }) {
+  const { error } = await supabase.from('routines').update(updates).eq('id', id);
+  if (error) throw error;
+}
+
+export async function deleteMyRoutine(id: string) {
+  const { error } = await supabase.from('routines').delete().eq('id', id);
+  if (error) throw error;
+}
+
+/**
+ * Inserts routines one at a time (rather than a single multi-row insert) so
+ * a conflict on one row — e.g. the routines_no_overlap exclusion constraint,
+ * Postgres error 23P01 — doesn't roll back the whole batch. Returns how many
+ * succeeded and which rows failed, keyed by their position in `inputs`.
+ */
+export async function bulkCreateRoutines(inputs: RoutineInput[]) {
+  let successCount = 0;
+  const errors: { row: number; message: string }[] = [];
+
+  for (let i = 0; i < inputs.length; i++) {
+    const { error } = await supabase.from('routines').insert(inputs[i]);
+    if (error) {
+      errors.push({
+        row: i,
+        message: error.code === '23P01' ? 'Overlaps with another class on your routine.' : error.message,
+      });
+    } else {
+      successCount++;
+    }
+  }
+
+  return { successCount, errors };
+}
+
 export async function getMyPerformance(memberId: string) {
   const { data, error } = await supabase
     .from('performance_metrics')
@@ -142,6 +195,28 @@ export async function markAllNotificationsRead(userId: string) {
 
 export async function updateProfile(memberId: string, updates: Partial<MemberProfile>) {
   const { error } = await supabase.from('members').update(updates).eq('id', memberId);
+  if (error) throw error;
+}
+
+export async function getMyNotificationPreferences(memberId: string) {
+  const { data, error } = await supabase
+    .from('notification_preferences')
+    .select('*')
+    .eq('member_id', memberId)
+    .maybeSingle();
+  if (error) throw error;
+  // No row yet means the member never saved preferences — caller should
+  // fall back to sensible defaults rather than treat this as an error.
+  return data;
+}
+
+export async function saveMyNotificationPreferences(
+  memberId: string,
+  prefs: { email: boolean; push: boolean; events: boolean; tasks: boolean }
+) {
+  const { error } = await supabase
+    .from('notification_preferences')
+    .upsert({ member_id: memberId, ...prefs, updated_at: new Date().toISOString() });
   if (error) throw error;
 }
 

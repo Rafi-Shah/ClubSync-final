@@ -1,3 +1,4 @@
+// MODIFIED FILE — replace the full content of: src/pages/member/Chat.tsx
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { PageTitle } from '../../components/member/MemberUI';
@@ -20,6 +21,9 @@ interface Conversation {
   title: string | null;
   related_team_id: string | null;
   last_message_at: string | null;
+  // Populated client-side for direct conversations: the OTHER participant's
+  // name (not the current user's own name). Undefined until loaded.
+  otherParticipantName?: string;
 }
 
 export default function Chat() {
@@ -34,10 +38,29 @@ export default function Chat() {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
   const [showNewChat, setShowNewChat] = useState(false);
-  const [showBroadcast, setShowBroadcast] = useState(false);
-  const [broadcastMsg, setBroadcastMsg] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Given a list of direct conversations, fetches all their participant
+  // rows in one batch query and returns a Map of conversation_id -> the
+  // OTHER participant's full_name (i.e. not the current member).
+  const fetchOtherParticipantNames = async (directConvIds: string[]) => {
+    const nameMap = new Map<string, string>();
+    if (!member || directConvIds.length === 0) return nameMap;
+
+    const { data: parts } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id, member_id, member:members(full_name)')
+      .in('conversation_id', directConvIds);
+
+    (parts ?? []).forEach((p: any) => {
+      if (p.member_id !== member.id) {
+        nameMap.set(p.conversation_id, p.member?.full_name ?? 'Direct Message');
+      }
+    });
+    return nameMap;
+  };
 
   // Load conversations
   const loadConversations = useCallback(async () => {
@@ -51,13 +74,30 @@ export default function Chat() {
       `)
       .eq('member_id', member.id);
     if (error) { setError(true); return; }
-    const convs = (data ?? []).map((row: any) => row.conversation).filter(Boolean);
+    const convs = (data ?? []).map((row: any) => row.conversation).filter(Boolean) as Conversation[];
+
+    // Fill in the other participant's name for direct conversations, so
+    // the list/header shows who you're actually talking to instead of a
+    // generic "Direct Message" label.
+    const directIds = convs.filter(c => c.conversation_type === 'direct').map(c => c.id);
+    const nameMap = await fetchOtherParticipantNames(directIds);
+    convs.forEach(c => {
+      if (c.conversation_type === 'direct') {
+        c.otherParticipantName = nameMap.get(c.id) ?? 'Direct Message';
+      }
+    });
+
     convs.sort((a: Conversation, b: Conversation) =>
       (b.last_message_at ?? b.id).localeCompare(a.last_message_at ?? a.id)
     );
     setConversations(convs);
-    if (convs.length > 0 && !activeConv) setActiveConv(convs[0]);
-  }, [member, activeConv]);
+    setActiveConv(prev => {
+      if (!prev) return convs.length > 0 ? convs[0] : prev;
+      // Keep the same conversation selected, but refresh it with the
+      // latest data (e.g. otherParticipantName) instead of a stale copy.
+      return convs.find(c => c.id === prev.id) ?? prev;
+    });
+  }, [member]);
 
   // Load members for new chat
   useEffect(() => {
@@ -164,20 +204,25 @@ export default function Chat() {
     if (!newMessage.trim() || !member || !activeConv) return;
     const body = newMessage.trim();
     setNewMessage('');
-    try {
-      await supabase.from('messages').insert({
-        conversation_id: activeConv.id,
-        sender_member_id: member.id,
-        body,
-      });
-      await supabase.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', activeConv.id);
-      // Stop typing
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      const channel = supabase.channel(`typing:${activeConv.id}`);
-      await channel.track({ member_id: member.id, is_typing: false });
-    } catch {
+    setActionError(null);
+    // supabase-js does NOT throw on a failed insert — it returns { error }
+    // instead. Without checking it, a failed send previously cleared the
+    // input with zero feedback, as if the message had gone through.
+    const { error: sendError } = await supabase.from('messages').insert({
+      conversation_id: activeConv.id,
+      sender_member_id: member.id,
+      body,
+    });
+    if (sendError) {
+      setActionError('Failed to send message. Please try again.');
       setNewMessage(body);
+      return;
     }
+    await supabase.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', activeConv.id);
+    // Stop typing
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    const channel = supabase.channel(`typing:${activeConv.id}`);
+    await channel.track({ member_id: member.id, is_typing: false });
   };
 
   // Typing indicator
@@ -195,6 +240,9 @@ export default function Chat() {
   // Start direct chat
   const startDirectChat = async (otherMemberId: string) => {
     if (!member) return;
+    setActionError(null);
+    const otherMember = allMembers.find(m => m.id === otherMemberId);
+
     // Check if conversation already exists
     const { data: existing } = await supabase
       .from('conversation_participants')
@@ -211,48 +259,32 @@ export default function Chat() {
         .select('member_id')
         .eq('conversation_id', conv.id);
       if (participants?.length === 2 && participants.some(p => p.member_id === otherMemberId)) {
-        setActiveConv(conv);
+        setActiveConv({ ...conv, otherParticipantName: otherMember?.full_name ?? 'Direct Message' });
         setShowNewChat(false);
         return;
       }
     }
-    // Create new direct conversation
-    const { data: conv } = await supabase.from('conversations').insert({
+    // Create new direct conversation. supabase-js returns { error } rather
+    // than throwing, so each step here is checked explicitly instead of
+    // silently doing nothing on failure.
+    const { data: conv, error: convError } = await supabase.from('conversations').insert({
       conversation_type: 'direct',
       created_by_member_id: member.id,
     }).select().single();
-    if (!conv) return;
-    await supabase.from('conversation_participants').insert([
+    if (convError || !conv) {
+      setActionError(convError?.message ?? 'Failed to start conversation.');
+      return;
+    }
+    const { error: participantsError } = await supabase.from('conversation_participants').insert([
       { conversation_id: conv.id, member_id: member.id },
       { conversation_id: conv.id, member_id: otherMemberId },
     ]);
-    setActiveConv(conv);
+    if (participantsError) {
+      setActionError(participantsError.message ?? 'Failed to start conversation.');
+      return;
+    }
+    setActiveConv({ ...conv, otherParticipantName: otherMember?.full_name ?? 'Direct Message' });
     setShowNewChat(false);
-    await loadConversations();
-  };
-
-  // Send broadcast
-  const handleBroadcast = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!member || !broadcastMsg.trim()) return;
-    const { data: conv } = await supabase.from('conversations').insert({
-      conversation_type: 'broadcast',
-      title: `Broadcast by ${member.full_name}`,
-      created_by_member_id: member.id,
-    }).select().single();
-    if (!conv) return;
-    // Add all active members as participants
-    const participants = allMembers.map(m => ({ conversation_id: conv.id, member_id: m.id }));
-    await supabase.from('conversation_participants').insert(participants);
-    await supabase.from('messages').insert({
-      conversation_id: conv.id,
-      sender_member_id: member.id,
-      body: broadcastMsg.trim(),
-    });
-    await supabase.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conv.id);
-    setBroadcastMsg('');
-    setShowBroadcast(false);
-    setActiveConv(conv);
     await loadConversations();
   };
 
@@ -260,11 +292,10 @@ export default function Chat() {
   if (error) return <ErrorState message="Failed to load chat." />;
 
   const getConvTitle = (conv: Conversation) => {
-    if (conv.title) return conv.title;
     if (conv.conversation_type === 'direct') {
-      // Find other participant's name
-      return 'Direct Message';
+      return conv.otherParticipantName || 'Direct Message';
     }
+    if (conv.title) return conv.title;
     return conv.conversation_type.charAt(0).toUpperCase() + conv.conversation_type.slice(1);
   };
 
@@ -274,18 +305,11 @@ export default function Chat() {
   return (
     <div>
       <PageTitle title="Live Chat" subtitle="Connect with other members in real time" action={
-        <div className="flex gap-2">
-          <button onClick={() => setShowBroadcast(s => !s)} className="btn-outline">Broadcast</button>
-          <button onClick={() => setShowNewChat(s => !s)} className="btn-primary">New Chat</button>
-        </div>
+        <button onClick={() => setShowNewChat(s => !s)} className="btn-primary">New Chat</button>
       } />
 
-      {/* Broadcast form */}
-      {showBroadcast && (
-        <form onSubmit={handleBroadcast} className="card p-4 mb-4 flex gap-3">
-          <input type="text" value={broadcastMsg} onChange={(e) => setBroadcastMsg(e.target.value)} placeholder="Broadcast message to all members..." className="input flex-1" required />
-          <button type="submit" className="btn-primary">Send</button>
-        </form>
+      {actionError && (
+        <p className="text-sm text-red-600 dark:text-red-400 mb-4">{actionError}</p>
       )}
 
       {/* New chat picker */}

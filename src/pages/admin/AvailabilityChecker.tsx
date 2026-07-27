@@ -1,243 +1,189 @@
-import { useEffect, useState, useMemo } from 'react';
-import { getAllRoutines, getAllMembers } from '../../lib/adminApi';
-import { PageTitle, StatCard, Select } from '../../components/admin/AdminUI';
+import { useEffect, useState } from 'react';
+import { PageTitle, StatCard, Select, Input } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
+import { findAvailableMembers, getDepartments, getRoles, type AvailabilityResult } from '../../lib/adminApi';
+import { DAY_NAMES, parseTimeToMinutes } from '../../lib/routineTime';
 
-interface Member {
-  id: string;
-  full_name: string;
-  email?: string;
-  avatar_url?: string | null;
-}
-
-interface Routine {
-  id: string;
-  member_id: string;
-  member: { id: string; full_name: string } | null;
-  title: string;
-  day_of_week: number;
-  start_time: string;
-  end_time: string;
-  location: string | null;
-  is_active: boolean;
-}
-
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+interface Department { id: string; name: string; }
+interface Role { id: number; slug: string; name: string; }
 
 export default function AvailabilityChecker() {
-  const [routines, setRoutines] = useState<Routine[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [selectedDay, setSelectedDay] = useState<number>(new Date().getDay());
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
 
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [r, mems] = await Promise.all([getAllRoutines(), getAllMembers()]);
-      setRoutines(r as Routine[]);
-      setMembers(mems as Member[]);
-    } catch (e: any) {
-      setError(e.message ?? 'Failed to load availability data');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [dayOfWeek, setDayOfWeek] = useState<number>(new Date().getDay());
+  const [startTime, setStartTime] = useState('14:00');
+  const [endTime, setEndTime] = useState('16:00');
+
+  const [roleSlug, setRoleSlug] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [batch, setBatch] = useState('');
+  const [semester, setSemester] = useState('');
+  const [committeeOnly, setCommitteeOnly] = useState(false);
+  const [search, setSearch] = useState('');
+
+  const [results, setResults] = useState<AvailabilityResult[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadingFilters, setLoadingFilters] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [timeError, setTimeError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
-      await load();
+      try {
+        const [d, r] = await Promise.all([getDepartments(), getRoles()]);
+        setDepartments(d as Department[]);
+        setRoles(r as Role[]);
+      } catch {
+        // Filters are optional enhancements — a failure here shouldn't block search.
+      } finally {
+        setLoadingFilters(false);
+      }
     })();
   }, []);
 
-  // Weekly grid: routines grouped by day of week
-  const weeklyGrid = useMemo(() => {
-    const grid: Record<number, Routine[]> = {};
-    for (let i = 0; i < 7; i++) grid[i] = [];
-    routines.forEach((r) => {
-      if (r.is_active && r.day_of_week >= 0 && r.day_of_week <= 6) {
-        grid[r.day_of_week].push(r);
-      }
-    });
-    return grid;
-  }, [routines]);
+  async function runSearch() {
+    setTimeError(null);
+    const startMinutes = parseTimeToMinutes(startTime);
+    const endMinutes = parseTimeToMinutes(endTime);
+    if (startMinutes === null || endMinutes === null) {
+      setTimeError('Enter valid start and end times.');
+      return;
+    }
+    if (endMinutes <= startMinutes) {
+      setTimeError('End time must be after the start time.');
+      return;
+    }
 
-  // Busy routines for the selected day
-  const busyByMember = useMemo(() => {
-    const map: Record<string, Routine[]> = {};
-    (weeklyGrid[selectedDay] ?? []).forEach((r) => {
-      if (!r.member_id) return;
-      if (!map[r.member_id]) map[r.member_id] = [];
-      map[r.member_id].push(r);
-    });
-    return map;
-  }, [weeklyGrid, selectedDay]);
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await findAvailableMembers({
+        dayOfWeek,
+        startMinutes,
+        endMinutes,
+        roleSlugs: roleSlug ? [roleSlug] : undefined,
+        departmentIds: departmentId ? [departmentId] : undefined,
+        batch: batch || undefined,
+        semester: semester || undefined,
+        committeeOnly: committeeOnly || undefined,
+        search: search || undefined,
+        limit: 300,
+      });
+      setResults(data);
+    } catch (e: any) {
+      setError(e.message ?? 'Failed to search availability.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  const availableMembers = useMemo(
-    () => members.filter((m) => !busyByMember[m.id]),
-    [members, busyByMember],
-  );
+  // Run once on load with the default window, then again whenever the
+  // person clicks "Search" — not on every keystroke, to avoid unnecessary
+  // API calls while typing a search term or picking filters.
+  useEffect(() => { runSearch(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
-  const busyMembers = useMemo(
-    () => members.filter((m) => busyByMember[m.id]),
-    [members, busyByMember],
-  );
-
-  const totalBusySlots = Object.values(busyByMember).reduce((sum, arr) => sum + arr.length, 0);
+  const available = (results ?? []).filter(r => r.is_available);
+  const busy = (results ?? []).filter(r => !r.is_available);
 
   return (
     <div>
       <PageTitle
-        title="Availability Checker"
-        subtitle="See who's free and who's busy across the week"
+        title="Availability Finder"
+        subtitle="Find members whose class routine is clear for a specific day and time window"
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label="Total Members" value={members.length} icon="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z" />
-        <StatCard label="Available Today" value={availableMembers.length} icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" color="green" />
-        <StatCard label="Busy Today" value={busyMembers.length} icon="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" color="amber" />
-      </div>
-
-      {/* Weekly grid */}
-      <div className="card p-5 mb-6">
-        <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Weekly Overview</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-          {DAYS.map((day, i) => {
-            const count = (weeklyGrid[i] ?? []).length;
-            const isSelected = i === selectedDay;
-            return (
-              <button
-                key={day}
-                onClick={() => setSelectedDay(i)}
-                className={`p-3 rounded-lg border text-left transition-all ${
-                  isSelected
-                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-950/30 ring-2 ring-primary-500/30'
-                    : 'border-slate-200 dark:border-slate-800 hover:border-primary-300 dark:hover:border-primary-700'
-                }`}
-              >
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{day.slice(0, 3)}</p>
-                <p className="text-lg font-display font-bold text-slate-900 dark:text-white mt-1">{count}</p>
-                <p className="text-xs text-slate-400 dark:text-slate-500">slots</p>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Day picker */}
-      <div className="card p-5 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="w-full sm:w-56">
-            <Select
-              label="Filter by day"
-              value={String(selectedDay)}
-              onChange={(e) => setSelectedDay(parseInt(e.target.value, 10))}
-            >
-              {DAYS.map((d, i) => (
-                <option key={i} value={i}>
-                  {d}
-                </option>
-              ))}
-            </Select>
-          </div>
+      <div className="card p-5 mb-6 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+          <Select label="Day" value={String(dayOfWeek)} onChange={(e) => setDayOfWeek(parseInt(e.target.value, 10))}>
+            {DAY_NAMES.map((d, i) => <option key={i} value={i}>{d}</option>)}
+          </Select>
+          <Input label="Start Time" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+          <Input label="End Time" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
           <div className="flex items-end">
-            <p className="text-sm text-slate-500 dark:text-slate-400">
-              Showing availability for <span className="font-semibold text-slate-900 dark:text-white">{DAYS[selectedDay]}</span>
-            </p>
+            <button onClick={runSearch} disabled={loading} className="btn btn-primary w-full disabled:opacity-60">
+              {loading ? 'Searching...' : 'Search'}
+            </button>
           </div>
+        </div>
+        {timeError && <p className="text-sm text-red-600 dark:text-red-400">{timeError}</p>}
+
+        {/* Smart filtering */}
+        <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+          <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-3">Smart Filters</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <Select label="Club Role" value={roleSlug} onChange={(e) => setRoleSlug(e.target.value)} disabled={loadingFilters}>
+              <option value="">Any role</option>
+              {roles.map((r) => <option key={r.slug} value={r.slug}>{r.name}</option>)}
+            </Select>
+            <Select label="Department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} disabled={loadingFilters}>
+              <option value="">Any department</option>
+              {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </Select>
+            <Input label="Batch" value={batch} onChange={(e) => setBatch(e.target.value)} placeholder="e.g. 2022" />
+            <Input label="Semester" value={semester} onChange={(e) => setSemester(e.target.value)} placeholder="e.g. 6th" />
+            <Input label="Search Name / ID" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Type to filter..." />
+          </div>
+          <label className="flex items-center gap-2 mt-3 text-sm text-slate-700 dark:text-slate-300">
+            <input type="checkbox" checked={committeeOnly} onChange={(e) => setCommitteeOnly(e.target.checked)} className="rounded border-slate-300 text-primary-600 focus:ring-primary-500" />
+            Executive committee members only
+          </label>
         </div>
       </div>
 
-      {loading && <LoadingState message="Loading availability..." />}
-      {error && !loading && <ErrorState message={error} onRetry={load} />}
-      {!loading && !error && members.length === 0 && (
-        <EmptyState title="No members found" message="Add members to check their availability." />
+      {results && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <StatCard label="Matched" value={results.length} icon="M17 20h5v-2a4 4 0 00-3-3.87M9 20H4v-2a4 4 0 013-3.87m6-1.13a4 4 0 10-4-4 4 4 0 004 4z" />
+          <StatCard label="Available" value={available.length} icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" color="green" />
+          <StatCard label="Busy" value={busy.length} icon="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" color="amber" />
+        </div>
       )}
 
-      {!loading && !error && members.length > 0 && (
-        <div className="space-y-6">
-          {/* Available Members */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-green-500" />
-              <h2 className="font-display font-bold text-slate-900 dark:text-white">
-                Available Members
-              </h2>
-              <span className="text-sm text-slate-400 dark:text-slate-500">({availableMembers.length})</span>
-            </div>
-            {availableMembers.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400 py-4">No members available on this day.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {availableMembers.map((m) => (
-                  <div key={m.id} className="card p-4 flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-green-100 dark:bg-green-950/40 grid place-items-center text-green-600 dark:text-green-400 font-semibold text-sm shrink-0">
-                      {m.full_name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-900 dark:text-white truncate">{m.full_name}</p>
-                      <p className="text-xs text-green-600 dark:text-green-400">Available</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+      {loading && <LoadingState message="Searching availability..." />}
+      {error && !loading && <ErrorState message={error} onRetry={runSearch} />}
+      {!loading && !error && results && results.length === 0 && (
+        <EmptyState title="No members matched" message="Try widening the time window or clearing a filter." />
+      )}
 
-          {/* Busy Members */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <h2 className="font-display font-bold text-slate-900 dark:text-white">
-                Busy Members
-              </h2>
-              <span className="text-sm text-slate-400 dark:text-slate-500">
-                ({busyMembers.length} · {totalBusySlots} slots)
-              </span>
-            </div>
-            {busyMembers.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400 py-4">No members are busy on this day.</p>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {busyMembers.map((m) => {
-                  const slots = busyByMember[m.id] ?? [];
-                  return (
-                    <div key={m.id} className="card p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-950/40 grid place-items-center text-amber-600 dark:text-amber-400 font-semibold text-sm shrink-0">
-                          {m.full_name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium text-slate-900 dark:text-white truncate">{m.full_name}</p>
-                          <p className="text-xs text-amber-600 dark:text-amber-400">
-                            Busy · {slots.length} {slots.length === 1 ? 'slot' : 'slots'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="space-y-1.5">
-                        {slots
-                          .slice()
-                          .sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''))
-                          .map((s) => (
-                            <div
-                              key={s.id}
-                              className="flex items-center justify-between text-xs bg-slate-50 dark:bg-slate-800/50 rounded-lg px-3 py-2"
-                            >
-                              <span className="font-medium text-slate-700 dark:text-slate-300 truncate">
-                                {s.title}
-                              </span>
-                              <span className="text-slate-500 dark:text-slate-400 shrink-0 ml-2">
-                                {s.start_time ?? '—'} – {s.end_time ?? '—'}
-                              </span>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+      {!loading && !error && results && results.length > 0 && (
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-50 dark:bg-slate-800">
+                <tr className="border-b border-slate-200 dark:border-slate-700">
+                  {['Status', 'Name', 'Student ID', 'Department', 'Position', 'Phone', 'Conflict'].map((h) => (
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {results.map((r) => (
+                  <tr key={r.member_id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {r.is_available ? (
+                        <span className="inline-flex items-center gap-1.5 text-green-600 dark:text-green-400 text-sm font-medium">
+                          <span className="w-2 h-2 rounded-full bg-green-500" /> Available
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 text-red-600 dark:text-red-400 text-sm font-medium">
+                          <span className="w-2 h-2 rounded-full bg-red-500" /> Busy
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900 dark:text-white whitespace-nowrap">{r.full_name}</td>
+                    <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap font-mono">{r.member_code}</td>
+                    <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{r.department_names ?? '—'}</td>
+                    <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{r.position_title}</td>
+                    <td className="px-4 py-3 text-sm text-slate-500 whitespace-nowrap">{r.phone ?? '—'}</td>
+                    <td className="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">
+                      {!r.is_available && r.conflict_title
+                        ? `${r.conflict_title} (${r.conflict_start?.slice(0, 5)}–${r.conflict_end?.slice(0, 5)})`
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

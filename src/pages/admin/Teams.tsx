@@ -67,6 +67,7 @@ export default function Teams() {
   const [editing, setEditing] = useState<Team | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Team | null>(null);
 
   const load = async () => {
@@ -93,6 +94,7 @@ export default function Teams() {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
+    setFormError(null);
     setModalOpen(true);
   };
 
@@ -105,16 +107,35 @@ export default function Teams() {
       description: t.description ?? '',
       lead_member_id: t.lead_member_id ?? '',
     });
+    setFormError(null);
     setModalOpen(true);
   };
 
   const handleSave = async () => {
+    setFormError(null);
+    if (!form.department_id) {
+      setFormError('Please select a department.');
+      return;
+    }
+    if (!form.name.trim()) {
+      setFormError('Please enter a team name.');
+      return;
+    }
+    const slug = (form.slug || form.name)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    if (!slug) {
+      setFormError('Please enter a name or a slug.');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
-        department_id: form.department_id || null,
+        department_id: form.department_id,
         name: form.name,
-        slug: form.slug,
+        slug,
         description: form.description || null,
         lead_member_id: form.lead_member_id || null,
       };
@@ -126,7 +147,7 @@ export default function Teams() {
       setModalOpen(false);
       await load();
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save team');
+      setFormError(e.message ?? 'Failed to save team');
     } finally {
       setSaving(false);
     }
@@ -225,6 +246,9 @@ export default function Teams() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Team' : 'Add Team'}>
         <div className="space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <Select
             label="Department"
             value={form.department_id}

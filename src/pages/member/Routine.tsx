@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { PageTitle } from '../../components/member/MemberUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
-import { getMyRoutines } from '../../lib/memberApi';
-import { supabase } from '../../lib/supabase';
+import { getMyRoutines, createRoutine, updateMyRoutine, deleteMyRoutine, type RoutineInput } from '../../lib/memberApi';
+import { DAY_NAMES, findOverlap } from '../../lib/routineTime';
 
-const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const emptyForm = {
+  title: '', description: '', course_code: '', teacher: '',
+  day_of_week: 1, start_time: '09:00', end_time: '10:00', location: '',
+};
 
 export default function Routine() {
   const { member } = useAuth();
@@ -13,7 +17,9 @@ export default function Routine() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', day_of_week: 1, start_time: '09:00', end_time: '10:00', location: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -27,34 +33,91 @@ export default function Routine() {
 
   useEffect(() => { load(); }, [member]);
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const openAdd = () => {
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormError(null);
+    setShowForm(true);
+  };
+
+  const openEdit = (r: any) => {
+    setEditingId(r.id);
+    setForm({
+      title: r.title,
+      description: r.description ?? '',
+      course_code: r.course_code ?? '',
+      teacher: r.teacher ?? '',
+      day_of_week: r.day_of_week,
+      start_time: (r.start_time ?? '').slice(0, 5),
+      end_time: (r.end_time ?? '').slice(0, 5),
+      location: r.location ?? '',
+    });
+    setFormError(null);
+    setShowForm(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!member) return;
+    setFormError(null);
+
+    if (form.end_time <= form.start_time) {
+      setFormError('End time must be after the start time.');
+      return;
+    }
+
+    // Client-side pre-check mirroring the DB's routines_no_overlap exclusion
+    // constraint — gives an immediate, specific error instead of a raw
+    // Postgres constraint-violation message.
+    const conflict = findOverlap(routines, {
+      day_of_week: form.day_of_week,
+      start_time: form.start_time,
+      end_time: form.end_time,
+    }, editingId ?? undefined);
+    if (conflict) {
+      setFormError(`This overlaps with "${conflict.title}" (${conflict.start_time?.slice(0, 5)}–${conflict.end_time?.slice(0, 5)}) already on your routine.`);
+      return;
+    }
+
     setSaving(true);
     try {
-      await supabase.from('routines').insert({
+      const payload: RoutineInput = {
         member_id: member.id,
         title: form.title,
         description: form.description || null,
+        course_code: form.course_code || null,
+        teacher: form.teacher || null,
         day_of_week: form.day_of_week,
         start_time: form.start_time,
         end_time: form.end_time,
         location: form.location || null,
-      });
-      setForm({ title: '', description: '', day_of_week: 1, start_time: '09:00', end_time: '10:00', location: '' });
+      };
+      if (editingId) {
+        await updateMyRoutine(editingId, payload);
+      } else {
+        await createRoutine(payload);
+      }
+      setForm(emptyForm);
+      setEditingId(null);
       setShowForm(false);
       await load();
-    } catch { setError(true); }
-    finally { setSaving(false); }
+    } catch (e: any) {
+      // 23P01 = Postgres exclusion constraint violation (routines_no_overlap).
+      // Falling back to the DB error is a safety net in case two browser
+      // tabs raced past the client-side check above.
+      setFormError(e?.code === '23P01' ? 'This overlaps with another class on your routine.' : (e.message ?? 'Failed to save.'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
-    await supabase.from('routines').delete().eq('id', id);
+    await deleteMyRoutine(id);
     await load();
   };
 
   const handleToggle = async (id: string, active: boolean) => {
-    await supabase.from('routines').update({ is_active: !active }).eq('id', id);
+    await updateMyRoutine(id, { is_active: !active });
     await load();
   };
 
@@ -64,21 +127,35 @@ export default function Routine() {
   return (
     <div>
       <PageTitle title="My Routine" subtitle="Your weekly schedule" action={
-        <button onClick={() => setShowForm(s => !s)} className="btn-primary">{showForm ? 'Cancel' : 'Add Entry'}</button>
+        <div className="flex gap-2">
+          <Link to="/portal/routine/import" className="btn-outline">Import CSV</Link>
+          <button onClick={() => (showForm ? setShowForm(false) : openAdd())} className="btn-primary">
+            {showForm ? 'Cancel' : 'Add Entry'}
+          </button>
+        </div>
       } />
 
       {showForm && (
-        <form onSubmit={handleAdd} className="card p-6 mb-6 space-y-4">
+        <form onSubmit={handleSubmit} className="card p-6 mb-6 space-y-4">
+          {formError && <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>}
           <div className="grid sm:grid-cols-2 gap-4">
             <div>
-              <label className="label">Title *</label>
-              <input type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input" placeholder="Team meeting" />
+              <label className="label">Course / Title *</label>
+              <input type="text" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="input" placeholder="Data Structures" />
+            </div>
+            <div>
+              <label className="label">Course Code</label>
+              <input type="text" value={form.course_code} onChange={(e) => setForm({ ...form, course_code: e.target.value })} className="input" placeholder="CSE201" />
             </div>
             <div>
               <label className="label">Day *</label>
               <select value={form.day_of_week} onChange={(e) => setForm({ ...form, day_of_week: Number(e.target.value) })} className="input">
-                {days.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                {DAY_NAMES.map((d, i) => <option key={i} value={i}>{d}</option>)}
               </select>
+            </div>
+            <div>
+              <label className="label">Teacher</label>
+              <input type="text" value={form.teacher} onChange={(e) => setForm({ ...form, teacher: e.target.value })} className="input" placeholder="Dr. Rahman" />
             </div>
             <div>
               <label className="label">Start Time *</label>
@@ -89,24 +166,26 @@ export default function Routine() {
               <input type="time" required value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} className="input" />
             </div>
             <div>
-              <label className="label">Location</label>
+              <label className="label">Room</label>
               <input type="text" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} className="input" placeholder="Room 204" />
             </div>
             <div>
               <label className="label">Description</label>
-              <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input" placeholder="Weekly sync" />
+              <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="input" placeholder="Optional notes" />
             </div>
           </div>
-          <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">{saving ? 'Saving...' : 'Save Entry'}</button>
+          <button type="submit" disabled={saving} className="btn-primary disabled:opacity-60">
+            {saving ? 'Saving...' : editingId ? 'Update Entry' : 'Save Entry'}
+          </button>
         </form>
       )}
 
       {routines.length === 0 ? (
-        <EmptyState title="No routine entries" message="Add your weekly schedule entries to keep track of your commitments." />
+        <EmptyState title="No routine entries" message="Add your weekly schedule entries manually, or import them from a CSV file." />
       ) : (
         <div className="space-y-6">
-          {days.map((day, dayIdx) => {
-            const dayRoutines = routines.filter(r => r.day_of_week === dayIdx);
+          {DAY_NAMES.map((day, dayIdx) => {
+            const dayRoutines = routines.filter(r => r.day_of_week === dayIdx).sort((a, b) => (a.start_time ?? '').localeCompare(b.start_time ?? ''));
             if (dayRoutines.length === 0) return null;
             return (
               <div key={dayIdx}>
@@ -119,11 +198,18 @@ export default function Routine() {
                         <p className="text-xs text-slate-400">{r.end_time?.slice(0, 5)}</p>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-900 dark:text-white">{r.title}</p>
-                        {r.location && <p className="text-xs text-slate-500">{r.location}</p>}
+                        <p className="text-sm font-medium text-slate-900 dark:text-white">
+                          {r.title}{r.course_code && <span className="ml-2 text-xs text-slate-400 font-mono">{r.course_code}</span>}
+                        </p>
+                        <p className="text-xs text-slate-500">
+                          {[r.location, r.teacher].filter(Boolean).join(' · ')}
+                        </p>
                         {r.description && <p className="text-xs text-slate-400 mt-0.5">{r.description}</p>}
                       </div>
                       <div className="flex gap-2 shrink-0">
+                        <button onClick={() => openEdit(r)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" title="Edit">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                        </button>
                         <button onClick={() => handleToggle(r.id, r.is_active)} className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800" title={r.is_active ? 'Deactivate' : 'Activate'}>
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d={r.is_active ? 'M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l7.07 7.07M21 21l-7.07-7.07' : 'M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z'} /></svg>
                         </button>

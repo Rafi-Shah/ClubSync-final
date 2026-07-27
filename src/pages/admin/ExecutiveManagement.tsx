@@ -10,6 +10,8 @@ import {
   Input,
   Select,
   formatDate,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -122,6 +124,8 @@ export default function ExecutiveManagement() {
     }
   }
 
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(executives, 10);
+
   return (
     <div>
       <PageTitle
@@ -142,8 +146,9 @@ export default function ExecutiveManagement() {
       ) : executives.length === 0 ? (
         <EmptyState title="No executives found" message="Add an executive to get started." />
       ) : (
+        <>
         <Table headers={['Member', 'Position', 'Term Start', 'Term End', 'Status', 'Actions']}>
-          {executives.map((ex) => (
+          {paged.map((ex) => (
             <TableRow key={ex.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">
                 {ex.member?.full_name ?? 'Unknown'}
@@ -168,6 +173,8 @@ export default function ExecutiveManagement() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal

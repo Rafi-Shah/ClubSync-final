@@ -18,6 +18,8 @@ import {
   Input,
   TextArea,
   Select,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 
@@ -69,9 +71,11 @@ export default function RoutineManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const [editing, setEditing] = useState<Routine | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Routine | null>(null);
 
   const load = async () => {
@@ -97,6 +101,7 @@ export default function RoutineManagement() {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
+    setFormError(null);
     setModalOpen(true);
   };
 
@@ -112,19 +117,39 @@ export default function RoutineManagement() {
       location: r.location ?? '',
       is_active: r.is_active,
     });
+    setFormError(null);
     setModalOpen(true);
   };
 
   const handleSave = async () => {
+    setFormError(null);
+    if (!form.member_id) {
+      setFormError('Please select a member.');
+      return;
+    }
+    if (!form.title.trim()) {
+      setFormError('Please enter a title.');
+      return;
+    }
+    if (!form.start_time || !form.end_time) {
+      setFormError('Please set both a start and end time.');
+      return;
+    }
+    // Matches the DB's CHECK (end_time > start_time) constraint — validate
+    // here so the person gets a clear message instead of a raw DB error.
+    if (form.end_time <= form.start_time) {
+      setFormError('End time must be after the start time.');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
-        member_id: form.member_id || null,
+        member_id: form.member_id,
         title: form.title,
         description: form.description || null,
         day_of_week: parseInt(form.day_of_week, 10),
-        start_time: form.start_time || null,
-        end_time: form.end_time || null,
+        start_time: form.start_time,
+        end_time: form.end_time,
         location: form.location || null,
         is_active: form.is_active,
       };
@@ -136,7 +161,7 @@ export default function RoutineManagement() {
       setModalOpen(false);
       await load();
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save routine');
+      setFormError(e.message ?? 'Failed to save routine');
     } finally {
       setSaving(false);
     }
@@ -152,6 +177,13 @@ export default function RoutineManagement() {
       setError(e.message ?? 'Failed to delete routine');
     }
   };
+
+  const filteredRoutines = routines.filter((r) => {
+    const q = search.toLowerCase().trim();
+    if (!q) return true;
+    return r.title?.toLowerCase().includes(q) || r.member?.full_name?.toLowerCase().includes(q);
+  });
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filteredRoutines, 10);
 
   return (
     <div>
@@ -176,14 +208,19 @@ export default function RoutineManagement() {
         <StatCard label="Inactive" value={routines.filter((r) => !r.is_active).length} icon="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" color="amber" />
       </div>
 
+      <div className="mb-4 w-full sm:w-64">
+        <Input label="Search" placeholder="Search by member or title..." value={search} onChange={(e) => setSearch(e.target.value)} />
+      </div>
+
       {loading && <LoadingState message="Loading routines..." />}
       {error && !loading && <ErrorState message={error} onRetry={load} />}
-      {!loading && !error && routines.length === 0 && (
+      {!loading && !error && filteredRoutines.length === 0 && (
         <EmptyState title="No routines yet" message="Create your first routine to get started." />
       )}
-      {!loading && !error && routines.length > 0 && (
+      {!loading && !error && filteredRoutines.length > 0 && (
+        <>
         <Table headers={['Member', 'Title', 'Day', 'Start', 'End', 'Location', 'Status', '']}>
-          {routines.map((r) => (
+          {paged.map((r) => (
             <TableRow key={r.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">
                 {r.member?.full_name ?? '—'}
@@ -221,10 +258,15 @@ export default function RoutineManagement() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Routine' : 'Add Routine'}>
         <div className="space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <Select label="Member" value={form.member_id} onChange={(e) => setForm({ ...form, member_id: e.target.value })}>
             <option value="">— Select member —</option>
             {members.map((m) => (

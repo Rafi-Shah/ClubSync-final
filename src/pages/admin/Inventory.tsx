@@ -11,6 +11,8 @@ import {
   Input,
   Select,
   TextArea,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -46,6 +48,7 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState('all');
+  const [search, setSearch] = useState('');
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -131,7 +134,13 @@ export default function Inventory() {
   };
 
   const categories = Array.from(new Set(items.map((i) => i.category).filter(Boolean))) as string[];
-  const filtered = items.filter((i) => categoryFilter === 'all' || i.category === categoryFilter);
+  const filtered = items.filter((i) => {
+    const matchesCategory = categoryFilter === 'all' || i.category === categoryFilter;
+    const q = search.toLowerCase().trim();
+    const matchesSearch = !q || i.name?.toLowerCase().includes(q) || (i.location ?? '').toLowerCase().includes(q);
+    return matchesCategory && matchesSearch;
+  });
+  const { page, setPage, totalPages, paged, pageSize, totalItems: filteredCount } = usePagination(filtered, 10);
 
   const totalItems = items.length;
   const totalQuantity = items.reduce((s, i) => s + (Number(i.quantity) || 0), 0);
@@ -161,6 +170,9 @@ export default function Inventory() {
       </div>
 
       <div className="mb-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="w-full sm:w-64">
+          <Input label="Search" placeholder="Search by name or location..." value={search} onChange={(e) => setSearch(e.target.value)} />
+        </div>
         <div className="w-full sm:w-56">
           <Select label="Filter by category" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)}>
             <option value="all">All categories</option>
@@ -178,8 +190,9 @@ export default function Inventory() {
       ) : filtered.length === 0 ? (
         <EmptyState title="No inventory items" message="Add an item to start tracking inventory." />
       ) : (
+        <>
         <Table headers={['Name', 'Category', 'Quantity', 'Unit', 'Condition', 'Location', 'Actions']}>
-          {filtered.map((it) => (
+          {paged.map((it) => (
             <TableRow key={it.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">{it.name}</TableCell>
               <TableCell>{it.category ?? '—'}</TableCell>
@@ -198,6 +211,8 @@ export default function Inventory() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={filteredCount} pageSize={pageSize} />
+        </>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Item' : 'Add Item'}>

@@ -8,6 +8,8 @@ import {
   Select,
   Input,
   formatDateTime,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import { getActivityLogs } from '../../lib/adminApi';
@@ -56,6 +58,8 @@ export default function ActivityLogs() {
     return portalMatch && searchMatch;
   });
 
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filtered, 15);
+
   const total = logs.length;
   const adminLogs = logs.filter((l) => l.portal === 'admin').length;
   const memberLogs = logs.filter((l) => l.portal === 'member').length;
@@ -96,8 +100,9 @@ export default function ActivityLogs() {
       ) : filtered.length === 0 ? (
         <EmptyState title="No logs found" message="Try adjusting your filters." />
       ) : (
+        <>
         <Table headers={['User', 'Portal', 'Action', 'Entity', 'Description', 'Created']}>
-          {filtered.map((l) => (
+          {paged.map((l) => (
             <TableRow key={l.id}>
               <TableCell><code className="text-xs bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">{truncate(l.user_id)}</code></TableCell>
               <TableCell><span className="capitalize">{l.portal ?? '—'}</span></TableCell>
@@ -108,6 +113,8 @@ export default function ActivityLogs() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
     </div>
   );

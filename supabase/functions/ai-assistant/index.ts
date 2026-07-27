@@ -101,6 +101,94 @@ interface DBResult {
   summary: string;
 }
 
+// ---------------------------------------------------------------------
+// Availability question parsing
+//
+// This is intentionally a separate, small parser rather than importing
+// src/lib/routineTime.ts from the frontend — edge functions run in an
+// isolated Deno runtime with no shared build step with the Vite app in
+// this project, so a cross-runtime import isn't available here. Only the
+// day-name/time-string PARSING is duplicated (a few lines); the actual
+// overlap MATH lives in exactly one place — the find_available_members()
+// Postgres function — which this file calls via RPC, same as the Admin
+// Availability Finder page does. That's the piece that matters for "don't
+// duplicate logic," and it isn't duplicated.
+// ---------------------------------------------------------------------
+
+const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
+
+function parseDayOfWeek(q: string): number | null {
+  if (/\btoday\b/.test(q)) return new Date().getDay();
+  if (/\btomorrow\b/.test(q)) return (new Date().getDay() + 1) % 7;
+  for (let i = 0; i < DAY_NAMES.length; i++) {
+    const full = DAY_NAMES[i];
+    const abbr = full.slice(0, 3);
+    if (new RegExp(`\\b${full}\\b`).test(q) || new RegExp(`\\b${abbr}\\b`).test(q)) {
+      return i;
+    }
+  }
+  return null;
+}
+
+// Named time-of-day windows, used when the question says "morning" /
+// "afternoon" / "evening" instead of an explicit numeric range.
+const TIME_OF_DAY: Record<string, [number, number]> = {
+  morning: [8 * 60, 12 * 60],
+  afternoon: [12 * 60, 17 * 60],
+  evening: [17 * 60, 21 * 60],
+  night: [21 * 60, 23 * 60 + 59],
+};
+
+function to24Hour(hour: number, meridiem: string | undefined): number {
+  if (!meridiem) return hour;
+  const m = meridiem.toLowerCase();
+  if (m === "pm" && hour !== 12) return hour + 12;
+  if (m === "am" && hour === 12) return 0;
+  return hour;
+}
+
+/** Parses an explicit "2pm to 4pm" / "14:00-16:00" / "10 AM - 1 PM" style range. */
+function parseTimeRange(q: string): [number, number] | null {
+  const re = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|to|–|until)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i;
+  const m = q.match(re);
+  if (!m) return null;
+
+  const [, h1, min1, mer1RAW, h2, min2, mer2RAW] = m;
+  let mer1 = mer1RAW;
+  let mer2 = mer2RAW;
+  // "2 to 4pm" — the first number borrows the second's meridiem if its own is missing.
+  if (!mer1 && mer2) mer1 = mer2;
+
+  const startHour = to24Hour(parseInt(h1, 10), mer1);
+  const endHour = to24Hour(parseInt(h2, 10), mer2);
+  const start = startHour * 60 + (min1 ? parseInt(min1, 10) : 0);
+  const end = endHour * 60 + (min2 ? parseInt(min2, 10) : 0);
+  if (end <= start) return null;
+  return [start, end];
+}
+
+function parseTimeOfDay(q: string): [number, number] | null {
+  for (const [word, range] of Object.entries(TIME_OF_DAY)) {
+    if (new RegExp(`\\b${word}\\b`).test(q)) return range;
+  }
+  return null;
+}
+
+function formatMinutes(mins: number): string {
+  const h24 = Math.floor(mins / 60);
+  const m = mins % 60;
+  const period = h24 >= 12 ? "PM" : "AM";
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+/** Pulls "10" out of "find 10 available executive members" as a result limit. */
+function parseLimit(q: string): number | null {
+  const m = q.match(/\b(\d{1,3})\s+(?:available|free|members|volunteers|students)\b/i)
+    ?? q.match(/\bfind\s+(\d{1,3})\b/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
 async function queryDatabase(supabase: any, question: string, userId?: string): Promise<DBResult[]> {
   const q = question.toLowerCase();
   const results: DBResult[] = [];
@@ -145,21 +233,77 @@ async function queryDatabase(supabase: any, question: string, userId?: string): 
     }
   }
 
-  // Who is free today / availability
-  if (q.includes("free today") || q.includes("available today") || q.includes("who is free") || q.includes("availability")) {
-    const today = new Date().getDay();
-    const { data: routines } = await supabase.from("routines")
-      .select("member_id, title, start_time, end_time")
-      .eq("day_of_week", today)
-      .eq("is_active", true);
-    const { data: members } = await supabase.from("members").select("id, full_name").eq("status", "active");
-    const busyIds = new Set((routines ?? []).map((r: any) => r.member_id));
-    const free = (members ?? []).filter((m: any) => !busyIds.has(m.id));
-    const busy = (members ?? []).filter((m: any) => busyIds.has(m.id));
+  // Availability / who is free — now day + time-range + department/role aware.
+  // Runs whenever the question names a day, a time range, or the general
+  // availability vocabulary — a plain "who is free today" still works via
+  // parseDayOfWeek's "today" fallback and the default 09:00–17:00 window.
+  const mentionsAvailability = q.includes("free") || q.includes("available") || q.includes("availability") || q.includes("busy");
+  const parsedDay = parseDayOfWeek(q);
+  if (mentionsAvailability || parsedDay !== null) {
+    const dayOfWeek = parsedDay ?? new Date().getDay();
+    const range = parseTimeRange(question) ?? parseTimeOfDay(q) ?? [9 * 60, 17 * 60]; // default business hours if no time is mentioned
+    const [startMinutes, endMinutes] = range;
+
+    // Department filter: match question text against real department
+    // names/slugs rather than guessing — e.g. "CSE students" only filters
+    // if a department actually named/slugged like CSE exists.
+    const { data: departments } = await supabase.from("departments").select("id, name, slug");
+    const matchedDeptIds = (departments ?? [])
+      .filter((d: any) => q.includes(d.name.toLowerCase()) || q.includes(d.slug.toLowerCase()))
+      .map((d: any) => d.id);
+
+    // Role filter: match against real role slugs/names the same way.
+    const { data: roles } = await supabase.from("roles").select("slug, name");
+    const matchedRoleSlugs = (roles ?? [])
+      .filter((r: any) => q.includes(r.slug.replace(/_/g, " ")) || q.includes(r.name.toLowerCase()))
+      .map((r: any) => r.slug);
+
+    const limit = parseLimit(question) ?? 200;
+
+    const { data: matches, error } = await supabase.rpc("find_available_members", {
+      p_day_of_week: dayOfWeek,
+      p_start_minutes: startMinutes,
+      p_end_minutes: endMinutes,
+      p_role_slugs: matchedRoleSlugs.length ? matchedRoleSlugs : null,
+      p_department_ids: matchedDeptIds.length ? matchedDeptIds : null,
+      p_batch: null,
+      p_semester: null,
+      p_committee_only: null,
+      p_position: null,
+      p_search: null,
+      p_only_available: q.includes("busy") ? false : true,
+      p_limit: limit,
+    });
+
+    if (error) {
+      results.push({ type: "availability", data: null, summary: `Could not run the availability search: ${error.message}` });
+      return results;
+    }
+
+    const dayLabel = DAY_NAMES[dayOfWeek][0].toUpperCase() + DAY_NAMES[dayOfWeek].slice(1);
+    const timeLabel = `${formatMinutes(startMinutes)}–${formatMinutes(endMinutes)}`;
+    const list = matches ?? [];
+
+    if (list.length === 0) {
+      const filterNote = [
+        matchedDeptIds.length ? `department filter matched ${matchedDeptIds.length} department(s)` : null,
+        matchedRoleSlugs.length ? `role filter: ${matchedRoleSlugs.join(", ")}` : null,
+      ].filter(Boolean).join("; ");
+      results.push({
+        type: "availability",
+        data: [],
+        summary: `No members matched for ${dayLabel} ${timeLabel}${filterNote ? ` (${filterNote})` : ""}. This usually means either no active members match the requested department/role filter, or everyone who matches already has a class in that window — try widening the time range or removing a filter.`,
+      });
+      return results;
+    }
+
     results.push({
       type: "availability",
-      data: { free, busy, busyRoutines: routines },
-      summary: `Free today (${free.length} members): ${free.map((m: any) => m.full_name).join(", ") || "None"}. Busy: ${busy.map((m: any) => m.full_name).join(", ") || "None"}.`,
+      data: list,
+      summary: `${q.includes("busy") ? "Busy" : "Available"} on ${dayLabel} ${timeLabel} (${list.length}): ` +
+        list.slice(0, 15).map((m: any) =>
+          `${m.full_name}${m.position_title ? ` (${m.position_title})` : ""}${m.department_names ? ` — ${m.department_names}` : ""}${!m.is_available && m.conflict_title ? ` [busy: ${m.conflict_title} ${m.conflict_start}-${m.conflict_end}]` : ""}`
+        ).join("; "),
     });
     return results;
   }

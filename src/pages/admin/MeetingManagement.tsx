@@ -12,6 +12,8 @@ import {
   Select,
   TextArea,
   formatDateTime,
+  usePagination,
+  Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
 import {
@@ -62,6 +64,7 @@ export default function MeetingManagement() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const [deleteTarget, setDeleteTarget] = useState<Meeting | null>(null);
 
@@ -88,6 +91,7 @@ export default function MeetingManagement() {
   const openAdd = () => {
     setEditingId(null);
     setForm({ ...emptyForm });
+    setFormError(null);
     setModalOpen(true);
   };
 
@@ -103,17 +107,31 @@ export default function MeetingManagement() {
       status: m.status ?? 'scheduled',
       organized_by_member_id: m.organized_by_member_id ?? '',
     });
+    setFormError(null);
     setModalOpen(true);
   };
 
   const handleSave = async () => {
+    setFormError(null);
+    if (!form.title.trim()) {
+      setFormError('Please enter a title.');
+      return;
+    }
+    if (!form.start_at) {
+      setFormError('Please set a start date/time.');
+      return;
+    }
+    if (form.end_at && new Date(form.end_at) < new Date(form.start_at)) {
+      setFormError('End time cannot be before the start time.');
+      return;
+    }
     setSaving(true);
     try {
       const payload: Record<string, any> = {
         title: form.title,
         agenda: form.agenda || null,
         location: form.location || null,
-        start_at: form.start_at ? new Date(form.start_at).toISOString() : null,
+        start_at: new Date(form.start_at).toISOString(),
         end_at: form.end_at ? new Date(form.end_at).toISOString() : null,
         meeting_type: form.meeting_type,
         status: form.status,
@@ -127,7 +145,7 @@ export default function MeetingManagement() {
       setModalOpen(false);
       await refresh();
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save meeting');
+      setFormError(e.message ?? 'Failed to save meeting');
     } finally {
       setSaving(false);
     }
@@ -145,6 +163,7 @@ export default function MeetingManagement() {
   };
 
   const filtered = meetings.filter((m) => statusFilter === 'all' || m.status === statusFilter);
+  const { page, setPage, totalPages, paged, pageSize, totalItems } = usePagination(filtered, 10);
 
   const counts = {
     scheduled: meetings.filter((m) => m.status === 'scheduled').length,
@@ -193,8 +212,9 @@ export default function MeetingManagement() {
       ) : filtered.length === 0 ? (
         <EmptyState title="No meetings found" message="Create a new meeting to get started." />
       ) : (
+        <>
         <Table headers={['Title', 'Organizer', 'Type', 'Start Time', 'Status', 'Actions']}>
-          {filtered.map((m) => (
+          {paged.map((m) => (
             <TableRow key={m.id}>
               <TableCell className="font-medium text-slate-900 dark:text-white">{m.title}</TableCell>
               <TableCell>{m.organizer?.full_name ?? '—'}</TableCell>
@@ -210,10 +230,15 @@ export default function MeetingManagement() {
             </TableRow>
           ))}
         </Table>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} totalItems={totalItems} pageSize={pageSize} />
+        </>
       )}
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editingId ? 'Edit Meeting' : 'Add Meeting'}>
         <div className="space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <Input label="Title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Meeting title" />
           <TextArea label="Agenda" value={form.agenda} onChange={(e) => setForm({ ...form, agenda: e.target.value })} rows={3} placeholder="Agenda items" />
           <Input label="Location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Location" />

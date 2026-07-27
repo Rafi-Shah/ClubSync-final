@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-export type UploadBucket = 'avatars' | 'gallery' | 'certificates' | 'documents';
+export type UploadBucket = 'avatars' | 'gallery' | 'certificates' | 'documents' | 'reports';
 
 interface UploadOptions {
   /** Max file size in megabytes. */
@@ -14,6 +14,7 @@ const DEFAULTS: Record<UploadBucket, Required<UploadOptions>> = {
   gallery: { maxSizeMB: 8, allowedTypes: ['image/'] },
   certificates: { maxSizeMB: 5, allowedTypes: ['application/pdf', 'image/'] },
   documents: { maxSizeMB: 5, allowedTypes: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument'] },
+  reports: { maxSizeMB: 10, allowedTypes: ['application/pdf'] },
 };
 
 export class FileValidationError extends Error {}

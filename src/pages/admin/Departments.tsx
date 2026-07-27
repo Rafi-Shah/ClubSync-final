@@ -52,6 +52,7 @@ export default function Departments() {
   const [editing, setEditing] = useState<Department | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Department | null>(null);
 
   const load = async () => {
@@ -77,6 +78,7 @@ export default function Departments() {
   const openAdd = () => {
     setEditing(null);
     setForm(emptyForm);
+    setFormError(null);
     setModalOpen(true);
   };
 
@@ -88,15 +90,30 @@ export default function Departments() {
       description: d.description ?? '',
       head_member_id: d.head_member_id ?? '',
     });
+    setFormError(null);
     setModalOpen(true);
   };
 
   const handleSave = async () => {
+    setFormError(null);
+    if (!form.name.trim()) {
+      setFormError('Please enter a department name.');
+      return;
+    }
+    const slug = (form.slug || form.name)
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+    if (!slug) {
+      setFormError('Please enter a name or a slug.');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
         name: form.name,
-        slug: form.slug,
+        slug,
         description: form.description || null,
         head_member_id: form.head_member_id || null,
       };
@@ -108,7 +125,7 @@ export default function Departments() {
       setModalOpen(false);
       await load();
     } catch (e: any) {
-      setError(e.message ?? 'Failed to save department');
+      setFormError(e.message ?? 'Failed to save department');
     } finally {
       setSaving(false);
     }
@@ -209,6 +226,9 @@ export default function Departments() {
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? 'Edit Department' : 'Add Department'}>
         <div className="space-y-4">
+          {formError && (
+            <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
+          )}
           <Input
             label="Name"
             value={form.name}

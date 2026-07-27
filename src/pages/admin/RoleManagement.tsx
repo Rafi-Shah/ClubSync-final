@@ -73,6 +73,19 @@ export default function RoleManagement() {
   }
 
   async function handleToggle(roleId: number, permissionId: number, enable: boolean) {
+    // Disabling a permission is a one-click, hard-to-reverse action — and
+    // if the affected role is the current admin's own role, it can lock
+    // them out of the portal entirely with no confirmation. Enabling a
+    // permission carries no such risk, so only disabling is confirmed.
+    if (!enable) {
+      const role = roles.find((r) => r.id === roleId);
+      const perm = permissions.find((p) => p.id === permissionId);
+      const confirmed = window.confirm(
+        `Remove "${perm?.name ?? 'this permission'}" from the "${role?.name ?? 'role'}" role?\n\n` +
+        `If you currently hold this role, removing this permission could immediately reduce your own access.`
+      );
+      if (!confirmed) return;
+    }
     const key = `${roleId}-${permissionId}`;
     setTogglingKey(key);
     try {

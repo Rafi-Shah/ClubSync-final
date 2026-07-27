@@ -7,6 +7,7 @@ import {
   TableCell,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
+import { toCSV, parseCSV, downloadCSV } from '../../lib/csv';
 import {
   getAllMembers,
   getEvents,
@@ -42,83 +43,14 @@ const exportConfigs: ExportConfig[] = [
 // members is unaffected — see exportConfigs above.
 const importTargets: ExportTarget[] = ['events', 'tasks', 'budgets', 'inventory'];
 
-// ---- CSV helpers ----
-function toCSV(rows: any[]): string {
-  if (!rows || rows.length === 0) return '';
-  const headers = Object.keys(rows[0]);
-  const escape = (val: any) => {
-    const s = val === null || val === undefined ? '' : String(val);
-    if (s.includes(',') || s.includes('"') || s.includes('\n')) {
-      return `"${s.replace(/"/g, '""')}"`;
-    }
-    return s;
-  };
-  const lines = [headers.join(',')];
-  for (const row of rows) {
-    lines.push(headers.map((h) => escape(row[h])).join(','));
-  }
-  return lines.join('\n');
-}
-
-function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.trim().split(/\r?\n/);
-  if (lines.length < 2) return [];
-  const parseLine = (line: string): string[] => {
-    const result: string[] = [];
-    let current = '';
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (inQuotes) {
-        if (ch === '"') {
-          if (line[i + 1] === '"') {
-            current += '"';
-            i++;
-          } else {
-            inQuotes = false;
-          }
-        } else {
-          current += ch;
-        }
-      } else {
-        if (ch === '"') {
-          inQuotes = true;
-        } else if (ch === ',') {
-          result.push(current);
-          current = '';
-        } else {
-          current += ch;
-        }
-      }
-    }
-    result.push(current);
-    return result;
-  };
-  const headers = parseLine(lines[0]);
-  const rows: Record<string, string>[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const values = parseLine(lines[i]);
-    const row: Record<string, string> = {};
-    headers.forEach((h, idx) => {
-      row[h] = values[idx] ?? '';
-    });
-    rows.push(row);
-  }
-  return rows;
-}
-
-function downloadCSV(filename: string, csv: string) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
+// NOTE: toCSV / parseCSV / downloadCSV used to be defined locally in this
+// file. They now live in src/lib/csv.ts so the new member-facing Routine
+// CSV importer (src/pages/member/RoutineCSVImport.tsx) can reuse the exact
+// same quote-aware parser instead of re-implementing it. Behavior is
+// unchanged except that the shared parseCSV also trims header/value
+// whitespace, which parseCSV here previously did not — a strictly safer
+// default for CSV import, not a breaking change for any existing use of
+// this page.
 
 export default function ImportExport() {
   const [exporting, setExporting] = useState<string | null>(null);
