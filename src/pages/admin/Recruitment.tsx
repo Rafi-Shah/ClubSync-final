@@ -414,8 +414,10 @@ export default function Recruitment() {
             >
               <option value="submitted">Submitted</option>
               <option value="under_review">Under Review</option>
-              <option value="approved">Approved</option>
+              <option value="shortlisted">Shortlisted</option>
+              <option value="accepted">Accepted</option>
               <option value="rejected">Rejected</option>
+              <option value="withdrawn">Withdrawn</option>
             </Select>
             <TextArea
               label="Review Notes"
