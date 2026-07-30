@@ -61,16 +61,31 @@ export async function getDepartments(): Promise<Department[]> {
 }
 
 export async function getExecutiveCommittee(): Promise<ExecutiveWithProfile[]> {
-  const { data, error } = await supabase
+  const { data: execRows, error } = await supabase
     .from('executive_committee')
-    .select(`
-      id, member_id, position, term_start, term_end, is_active,
-      member:members!executive_committee_member_id_fkey ( full_name, email, avatar_url, bio )
-    `)
+    .select('id, member_id, position, term_start, term_end, is_active')
     .eq('is_active', true)
     .order('term_start', { ascending: true });
   if (error) throw error;
-  return (data ?? []) as unknown as ExecutiveWithProfile[];
+  if (!execRows || execRows.length === 0) return [];
+
+  // Fetch name/avatar/bio from the public-safe view (not the members table
+  // directly) — anon visitors have no SELECT access on members itself, so
+  // an embedded join through the FK returned null for every field here,
+  // showing "Unknown" for everyone once logged out.
+  const memberIds = execRows.map((r) => r.member_id);
+  const { data: profiles, error: profileErr } = await supabase
+    .from('public_member_profiles')
+    .select('id, full_name, avatar_url, bio')
+    .in('id', memberIds);
+  if (profileErr) throw profileErr;
+
+  const profileById = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+
+  return execRows.map((r) => ({
+    ...r,
+    member: profileById.get(r.member_id) ?? null,
+  })) as unknown as ExecutiveWithProfile[];
 }
 
 export async function getOpenRecruitments(): Promise<Recruitment[]> {
