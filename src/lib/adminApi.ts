@@ -38,10 +38,31 @@ export async function updateMember(id: string, updates: Record<string, any>) {
   logActivity('update', 'member', id, `Updated member profile`);
 }
 
+// Deletes a member completely: their user_roles assignment, their members
+// row, and their actual login (auth.users) — via an Edge Function, since
+// deleting an auth user requires the service role key which client-side
+// code can't use directly. The old version only deleted the members row,
+// so the account could still log in afterwards even though it no longer
+// showed up in Member Management.
 export async function deleteMember(id: string) {
-  const { error } = await supabase.from('members').delete().eq('id', id);
-  if (error) throw error;
-  logActivity('delete', 'member', id, `Deleted member`);
+  const { data, error } = await supabase.functions.invoke('delete-member-account', {
+    body: { member_id: id },
+  });
+  if (error) {
+    let message = error.message;
+    const ctx = (error as any)?.context;
+    if (ctx && typeof ctx.json === 'function') {
+      try {
+        const body = await ctx.json();
+        if (body?.error) message = body.error;
+      } catch {
+        // response body wasn't JSON — fall back to the generic message
+      }
+    }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(data.error);
+  logActivity('delete', 'member', id, `Deleted member and revoked login access`);
 }
 
 // ============ USERS (auth) ============
