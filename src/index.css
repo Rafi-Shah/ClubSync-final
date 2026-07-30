@@ -26,6 +26,48 @@
 .reveal { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
 .reveal.is-visible { opacity: 1; transform: translateY(0); }
 
+@keyframes tableRowIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tableEmptyPop {
+  0% { opacity: 0; transform: scale(0.98); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+.table-row-animated {
+  opacity: 0;
+  animation: tableRowIn 0.42s ease-out forwards;
+}
+
+.table-animated tbody tr {
+  opacity: 0;
+  animation: tableRowIn 0.42s ease-out forwards;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.table-animated tbody tr:nth-child(1) { animation-delay: 0ms; }
+.table-animated tbody tr:nth-child(2) { animation-delay: 45ms; }
+.table-animated tbody tr:nth-child(3) { animation-delay: 90ms; }
+.table-animated tbody tr:nth-child(4) { animation-delay: 135ms; }
+.table-animated tbody tr:nth-child(5) { animation-delay: 180ms; }
+.table-animated tbody tr:nth-child(6) { animation-delay: 225ms; }
+.table-animated tbody tr:nth-child(7) { animation-delay: 270ms; }
+.table-animated tbody tr:nth-child(8) { animation-delay: 315ms; }
+.table-animated tbody tr:nth-child(9) { animation-delay: 360ms; }
+.table-animated tbody tr:nth-child(10) { animation-delay: 405ms; }
+
+.table-empty-state {
+  @apply flex flex-col items-center justify-center gap-2 text-center;
+  animation: tableEmptyPop 0.35s ease-out forwards;
+}
+
+.table-pagination-shell {
+  @apply rounded-lg;
+  transition: background-color 0.25s ease;
+}
+
 /* Accessibility: visible skip-to-content link for keyboard users */
 .skip-link {
   @apply sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100]
@@ -47,7 +89,7 @@ textarea:focus-visible {
 
 /* Respect reduced-motion preference: disable decorative animations */
 @media (prefers-reduced-motion: reduce) {
-  .reveal, .animate-fade-in, .animate-fade-in-up, .animate-slide-in, .animate-scale-in, .animate-float, .animate-shimmer {
+  .reveal, .animate-fade-in, .animate-fade-in-up, .animate-slide-in, .animate-scale-in, .animate-float, .animate-shimmer, .table-row-animated, .table-empty-state {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
