@@ -250,6 +250,19 @@ Since the backend is entirely hosted on Supabase, any machine with the same `.en
 - Direct messages between members are private by design, enforced at the database level — this was a deliberate security fix; don't reintroduce broad `is_admin_user()` read access to the `messages`/`conversations` tables for direct-type conversations.
 - The `create-member-account` Edge Function is intentionally locked down to admin-tier callers only — it can create arbitrary logins and must never be called from unauthenticated context.
 
+## Screenshots
+
+   ### Public Portal
+   ![Public Portal](docs/screenshots/ClubSync_Home.png)
+   ![Public Portal](docs/screenshots/ClubSync_Committe.png)
+
+   ### Admin Dashboard
+   ![Admin Dashboard](docs/screenshots/AdminPortal.png)
+
+   ### Member Portal
+   ![Member Portal](docs/screenshots/MemberPortal.png)
+
+
 ## Contributors
  
 - [Rafi-Shah](https://github.com/Rafi-Shah)
