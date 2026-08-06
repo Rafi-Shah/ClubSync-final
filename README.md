@@ -20,6 +20,7 @@ A full-stack club management web application with a public website, a self-servi
 - [Deploying to a New Machine](#deploying-to-a-new-machine)
 - [Security Notes](#security-notes)
 - [Screenshots](#screenshots)
+- [Contributors](#contributors)
 
 
 ---
