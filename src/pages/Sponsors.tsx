@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import PageHeader from '../components/PageHeader';
-import Section, { SectionHeader } from '../components/Section';
+import Section from '../components/Section';
 import { LoadingState, ErrorState, EmptyState } from '../components/States';
 import { getSponsors } from '../lib/api';
 import type { Sponsor } from '../types';
 
-const tierConfig: Record<string, { label: string; color: string; ring: string }> = {
-  platinum: { label: 'Platinum', color: 'text-slate-400', ring: 'ring-slate-300 dark:ring-slate-600' },
-  gold: { label: 'Gold', color: 'text-amber-500', ring: 'ring-amber-300 dark:ring-amber-600' },
-  silver: { label: 'Silver', color: 'text-slate-500', ring: 'ring-slate-200 dark:ring-slate-700' },
-  bronze: { label: 'Bronze', color: 'text-orange-600', ring: 'ring-orange-300 dark:ring-orange-700' },
+const tierConfig: Record<string, { label: string; badgeBg: string; text: string }> = {
+  platinum: { label: 'Platinum Sponsor', badgeBg: 'bg-indigo-500/10 border-indigo-500/30', text: 'text-indigo-600 dark:text-indigo-400' },
+  gold: { label: 'Gold Sponsor', badgeBg: 'bg-amber-500/10 border-amber-500/30', text: 'text-amber-600 dark:text-amber-400' },
+  silver: { label: 'Silver Sponsor', badgeBg: 'bg-slate-500/10 border-slate-500/30', text: 'text-slate-600 dark:text-slate-400' },
+  bronze: { label: 'Bronze Sponsor', badgeBg: 'bg-orange-500/10 border-orange-500/30', text: 'text-orange-600 dark:text-orange-400' },
 };
 
 export default function Sponsors() {
@@ -24,30 +24,39 @@ export default function Sponsors() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <LoadingState />;
-  if (error) return <ErrorState message="Failed to load sponsors." />;
+  if (loading) return <LoadingState message="Loading sponsors..." />;
+  if (error) return <ErrorState message="Failed to load sponsors." onRetry={() => window.location.reload()} />;
 
   const tiers = ['platinum', 'gold', 'silver', 'bronze'] as const;
 
   return (
     <>
-      <PageHeader title="Our Sponsors" subtitle="We thank the partners who make our mission possible." breadcrumb="Home / Sponsors" />
-      <Section>
+      <PageHeader
+        title="Our Sponsors & Partners"
+        subtitle="Empowering student technology leaders through direct sponsorship, mentorship, and industry partnerships."
+        breadcrumb="Home / Sponsors"
+      />
+      <Section className="bg-slate-50/40 dark:bg-slate-950/40">
         <div className="container-page">
           {sponsors.length === 0 ? (
-            <EmptyState title="No sponsors" message="Sponsor information will appear here." />
+            <EmptyState title="No sponsors available" message="Sponsors and industry partners will appear here." />
           ) : (
-            <div className="space-y-12">
+            <div className="space-y-16">
               {tiers.map(tier => {
                 const tierSponsors = sponsors.filter(s => s.tier === tier);
                 if (tierSponsors.length === 0) return null;
                 const cfg = tierConfig[tier];
                 return (
-                  <div key={tier}>
-                    <div className="flex items-center gap-3 mb-6">
-                      <h3 className={`text-sm font-bold uppercase tracking-wider ${cfg.color}`}>{cfg.label} Sponsors</h3>
+                  <div key={tier} className="space-y-6">
+                    {/* Tier Divider Header */}
+                    <div className="flex items-center gap-4">
+                      <span className={`px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${cfg.badgeBg} ${cfg.text}`}>
+                        {cfg.label}
+                      </span>
                       <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800" />
                     </div>
+
+                    {/* Sponsor Cards Grid */}
                     <div className={`grid gap-6 ${tier === 'platinum' ? 'sm:grid-cols-2' : 'sm:grid-cols-2 lg:grid-cols-3'}`}>
                       {tierSponsors.map((s, i) => (
                         <a
@@ -55,16 +64,34 @@ export default function Sponsors() {
                           href={s.website_url ?? '#'}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`card p-8 flex flex-col items-center text-center group hover:-translate-y-1 transition-all duration-300 ring-1 ${cfg.ring} animate-fade-in-up`}
+                          className="glass-card p-8 flex flex-col items-center text-center group hover:-translate-y-2 hover:shadow-2xl transition-all duration-300 border border-slate-200/70 dark:border-white/10 animate-fade-in-up"
                           style={{ animationDelay: `${i * 80}ms` }}
                         >
-                          {s.logo_url ? (
-                            <img src={s.logo_url} alt={s.name} loading="lazy" className="h-20 w-auto object-contain mb-4 grayscale group-hover:grayscale-0 transition-all" />
-                          ) : (
-                            <div className="h-20 grid place-items-center mb-4 font-display font-bold text-2xl text-slate-300 dark:text-slate-600">{s.name}</div>
+                          {/* Logo Container */}
+                          <div className="h-24 w-full flex items-center justify-center mb-4">
+                            {s.logo_url ? (
+                              <img
+                                src={s.logo_url}
+                                alt={s.name}
+                                loading="lazy"
+                                className="max-h-20 max-w-full object-contain filter group-hover:scale-110 transition-transform duration-300"
+                              />
+                            ) : (
+                              <span className="font-display font-bold text-2xl text-slate-400 group-hover:text-primary-500 transition-colors">
+                                {s.name}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Sponsor Info */}
+                          <h4 className="font-display font-bold text-lg text-slate-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                            {s.name}
+                          </h4>
+                          {s.description && (
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 font-normal leading-relaxed line-clamp-2">
+                              {s.description}
+                            </p>
                           )}
-                          <h4 className="font-display font-semibold text-slate-900 dark:text-white">{s.name}</h4>
-                          {s.description && <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">{s.description}</p>}
                         </a>
                       ))}
                     </div>
@@ -78,3 +105,4 @@ export default function Sponsors() {
     </>
   );
 }
+

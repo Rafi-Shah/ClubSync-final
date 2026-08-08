@@ -19,45 +19,153 @@ export default function Footer() {
   };
 
   return (
-    <footer className="bg-slate-900 dark:bg-slate-950 text-slate-300 mt-20">
-      <div className="container-page py-12 grid gap-8 md:grid-cols-4">
-        <div className="md:col-span-2">
-          <div className="flex items-center gap-2 font-display font-bold text-xl text-white mb-3">
-            <span className="w-9 h-9 rounded-lg bg-primary-600 text-white grid place-items-center text-sm">CS</span>
-            {settings?.club_name ?? 'ClubSync'}
-          </div>
-          <p className="text-sm text-slate-400 max-w-md">{settings?.description ?? 'Where Passion Meets Purpose'}</p>
-          <div className="flex gap-3 mt-4">
+    <footer className="bg-slate-950 text-slate-300 relative border-t border-slate-800/80 overflow-hidden">
+      {/* Top Accent Glow Border */}
+      <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-primary-500/60 to-transparent" />
+
+      {/* Subtle Background Mesh Grid */}
+      <div className="pointer-events-none absolute inset-0 opacity-10 bg-grid-mesh" />
+
+      <div className="container-page py-16 lg:py-20 relative z-10 grid gap-10 md:grid-cols-2 lg:grid-cols-5">
+        {/* Brand Column (Spans 2 on desktop) */}
+        <div className="lg:col-span-2 space-y-4">
+          <Link to="/" className="inline-flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary-600 via-indigo-600 to-violet-600 text-white grid place-items-center font-display font-extrabold text-base shadow-lg shadow-primary-500/20 group-hover:scale-105 transition-transform">
+              CS
+            </div>
+            <span className="font-display font-extrabold text-2xl text-white tracking-tight">
+              {settings?.club_name ?? 'ClubSync'}
+            </span>
+          </Link>
+          <p className="text-sm text-slate-400 leading-relaxed max-w-sm font-normal">
+            {settings?.description ?? 'Empowering university students to innovate, collaborate, and lead through real-world tech projects, workshops, and community events.'}
+          </p>
+
+          {/* Social Links */}
+          <div className="pt-2 flex items-center gap-3">
             {Object.entries(socials).map(([key, url]) => (
-              <a key={key} href={url} target="_blank" rel="noopener noreferrer" className="w-9 h-9 rounded-lg bg-slate-800 hover:bg-primary-600 grid place-items-center transition-colors" aria-label={key}>
-                <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d={(socialIcons as Record<string, string>)[key] ?? ''} /></svg>
+              <a
+                key={key}
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-10 h-10 rounded-xl bg-slate-900/90 border border-slate-800 text-slate-400 hover:text-white hover:bg-gradient-to-tr hover:from-primary-600 hover:to-indigo-600 hover:border-primary-500/50 hover:scale-110 hover:-rotate-3 transition-all duration-300 grid place-items-center shadow-md"
+                aria-label={key}
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d={(socialIcons as Record<string, string>)[key] ?? ''} />
+                </svg>
               </a>
             ))}
           </div>
         </div>
 
-        <div>
-          <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Explore</h4>
-          <ul className="space-y-2 text-sm">
-            <li><Link to="/about" className="hover:text-primary-400 transition-colors">About</Link></li>
-            <li><Link to="/events" className="hover:text-primary-400 transition-colors">Events</Link></li>
-            <li><Link to="/recruitment" className="hover:text-primary-400 transition-colors">Recruitment</Link></li>
-            <li><Link to="/gallery" className="hover:text-primary-400 transition-colors">Gallery</Link></li>
+        {/* Navigation Links Column */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Explore</h4>
+          <ul className="space-y-2.5 text-sm">
+            {[
+              { label: 'About Us', path: '/about' },
+              { label: 'Events Schedule', path: '/events' },
+              { label: 'Recruitment Drive', path: '/recruitment' },
+              { label: 'Media Gallery', path: '/gallery' },
+              { label: 'Key Achievements', path: '/achievements' },
+            ].map(item => (
+              <li key={item.path}>
+                <Link
+                  to={item.path}
+                  className="group inline-flex items-center gap-1.5 text-slate-400 hover:text-primary-400 transition-colors"
+                >
+                  <span className="w-1 h-1 rounded-full bg-slate-600 group-hover:bg-primary-400 group-hover:scale-150 transition-all" />
+                  <span className="group-hover:translate-x-1 transition-transform">{item.label}</span>
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
 
-        <div>
-          <h4 className="text-white font-semibold mb-3 text-sm uppercase tracking-wide">Contact</h4>
-          <ul className="space-y-2 text-sm text-slate-400">
-            {settings?.contact_email && <li>{settings.contact_email}</li>}
-            {settings?.contact_phone && <li>{settings.contact_phone}</li>}
-            {settings?.address && <li className="max-w-xs">{settings.address}</li>}
+        {/* Organization Column */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Organization</h4>
+          <ul className="space-y-2.5 text-sm">
+            {[
+              { label: 'Club Departments', path: '/departments' },
+              { label: 'Executive Committee', path: '/committee' },
+              { label: 'Sponsors & Partners', path: '/sponsors' },
+              { label: 'Help & FAQ', path: '/faq' },
+              { label: 'Contact Us', path: '/contact' },
+            ].map(item => (
+              <li key={item.path}>
+                <Link
+                  to={item.path}
+                  className="group inline-flex items-center gap-1.5 text-slate-400 hover:text-primary-400 transition-colors"
+                >
+                  <span className="w-1 h-1 rounded-full bg-slate-600 group-hover:bg-primary-400 group-hover:scale-150 transition-all" />
+                  <span className="group-hover:translate-x-1 transition-transform">{item.label}</span>
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
+
+        {/* Contact & Portal Access Column */}
+        <div className="space-y-4">
+          <h4 className="text-xs font-extrabold text-white uppercase tracking-wider">Contact & Portal</h4>
+          <ul className="space-y-2.5 text-sm text-slate-400">
+            {settings?.contact_email && (
+              <li className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                </svg>
+                <span className="truncate">{settings.contact_email}</span>
+              </li>
+            )}
+            {settings?.contact_phone && (
+              <li className="flex items-center gap-2">
+                <svg className="w-4 h-4 text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-2.826-1.47-5.114-3.758-6.584-6.584l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                </svg>
+                <span>{settings.contact_phone}</span>
+              </li>
+            )}
+            {settings?.address && (
+              <li className="flex items-start gap-2">
+                <svg className="w-4 h-4 text-primary-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                </svg>
+                <span className="line-clamp-2">{settings.address}</span>
+              </li>
+            )}
+          </ul>
+
+          <div className="pt-2">
+            <Link
+              to="/login"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-white/10 hover:bg-white/15 text-white border border-white/15 transition-all hover:scale-105"
+            >
+              <span>Member Portal Login</span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l3 3m0 0l-3 3m3-3H2.25" />
+              </svg>
+            </Link>
+          </div>
+        </div>
       </div>
-      <div className="border-t border-slate-800 py-6 text-center text-sm text-slate-500">
-        © {new Date().getFullYear()} {settings?.club_name ?? 'ClubSync'}. All rights reserved.
+
+      {/* Bottom Sub-Footer Copyright Bar */}
+      <div className="border-t border-slate-900 py-6 relative z-10">
+        <div className="container-page flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <p>© {new Date().getFullYear()} {settings?.club_name ?? 'ClubSync'}. All rights reserved.</p>
+          <div className="flex items-center gap-6">
+            <Link to="/contact" className="hover:text-slate-400 transition-colors">Support</Link>
+            <Link to="/faq" className="hover:text-slate-400 transition-colors">FAQ</Link>
+            <span className="text-slate-700">|</span>
+            <span className="text-slate-600">Built for Innovation & Impact</span>
+          </div>
+        </div>
       </div>
     </footer>
   );
 }
+

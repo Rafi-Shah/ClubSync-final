@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import ImageSlider from '../components/ImageSlider';
+import FeaturesSection from '../components/FeaturesSection';
+import StatsSection from '../components/StatsSection';
+import CtaSection from '../components/CtaSection';
 import Section, { SectionHeader } from '../components/Section';
 import EventCard from '../components/EventCard';
 import { LoadingState, ErrorState } from '../components/States';
@@ -16,7 +19,7 @@ const heroSlides = [
 const stats = [
   { value: '500+', label: 'Active Members' },
   { value: '6', label: 'Departments' },
-  { value: '120+', label: 'Events Hosted' },
+  { value: '100+', label: 'Events Hosted' },
   { value: '2,000+', label: 'Volunteer Hours' },
 ];
 
@@ -46,20 +49,14 @@ export default function Home() {
     <>
       <ImageSlider slides={heroSlides} />
 
-      {/* Stats bar */}
-      <div className="bg-primary-600 text-white">
-        <div className="container-page py-10 grid grid-cols-2 md:grid-cols-4 gap-6">
-          {stats.map((s, i) => (
-            <div key={i} className="text-center animate-fade-in-up" style={{ animationDelay: `${i * 100}ms` }}>
-              <p className="text-3xl sm:text-4xl font-display font-bold">{s.value}</p>
-              <p className="text-sm text-primary-100 mt-1">{s.label}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      {/* Features Section */}
+      <FeaturesSection />
+
+      {/* Interactive Stats Section */}
+      <StatsSection stats={stats} />
 
       {/* About preview */}
-      <Section>
+      <Section id="about-preview">
         <div className="container-page grid md:grid-cols-2 gap-12 items-center">
           <div>
             <SectionHeader title="About ClubSync" subtitle="A premier university club dedicated to technology, innovation, and community." />
@@ -144,19 +141,9 @@ export default function Home() {
         </Section>
       )}
 
-      {/* CTA */}
-      <Section>
-        <div className="container-page">
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-600 to-primary-800 text-white p-10 sm:p-16 text-center">
-            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 30% 50%, white 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
-            <div className="relative">
-              <h2 className="text-3xl sm:text-4xl font-display font-bold text-white mb-4">Ready to Join?</h2>
-              <p className="text-primary-100 text-lg max-w-xl mx-auto mb-8">Become part of a community that builds, learns, and grows together.</p>
-              <Link to="/recruitment" className="btn bg-white text-primary-700 hover:bg-primary-50 shadow-lg">Apply Now</Link>
-            </div>
-          </div>
-        </div>
-      </Section>
+      {/* SaaS Conversion CTA Section */}
+      <CtaSection />
     </>
   );
 }
+
