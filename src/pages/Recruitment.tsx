@@ -45,99 +45,128 @@ export default function RecruitmentPage() {
         experience: form.experience || null,
         cv_url: cvUrl,
       });
-      setSubmitState({ ok: true, message: 'Application submitted successfully! We will be in touch soon.' });
+      setSubmitState({ ok: true, message: 'Application submitted successfully! We will review your application and be in touch soon.' });
       setForm({ applicant_name: '', applicant_email: '', applicant_phone: '', student_id: '', department_preference: '', motivation: '', experience: '' });
       setCvUrl(null);
     } catch {
-      setSubmitState({ ok: false, message: 'Failed to submit application. Please try again.' });
+      setSubmitState({ ok: false, message: 'Failed to submit application. Please check your information and try again.' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <LoadingState />;
-  if (error) return <ErrorState message="Failed to load recruitment info." />;
+  if (loading) return <LoadingState message="Loading recruitment drives..." />;
+  if (error) return <ErrorState message="Failed to load recruitment information." onRetry={() => window.location.reload()} />;
 
   return (
     <>
-      <PageHeader title="Join ClubSync" subtitle="Apply to become a member and start your journey with us." breadcrumb="Home / Recruitment" />
-      <Section>
+      <PageHeader
+        title="Recruitment Drive"
+        subtitle="Apply to become a student member and build the future of technology on campus."
+        breadcrumb="Home / Recruitment"
+      />
+      <Section className="bg-slate-50/40 dark:bg-slate-950/40">
         <div className="container-page max-w-3xl">
           {recruitments.length === 0 ? (
-            <EmptyState title="No open recruitments" message="Recruitment is currently closed. Check back at the start of next semester!" />
+            <EmptyState title="Recruitment currently closed" message="There are no active recruitment drives right now. Please check back at the start of next semester!" />
           ) : (
             <>
-              {/* Open recruitments */}
+              {/* Open Recruitment Information Cards */}
               <div className="space-y-4 mb-10">
                 {recruitments.map(r => (
-                  <div key={r.id} className="card p-6">
-                    <h3 className="font-display font-semibold text-lg text-slate-900 dark:text-white">{r.title}</h3>
-                    {r.description && <p className="text-sm text-slate-600 dark:text-slate-400 mt-2">{r.description}</p>}
+                  <div key={r.id} className="glass-card p-6 border border-slate-200/80 dark:border-white/10 relative overflow-hidden">
+                    <div className="flex items-center justify-between gap-4 mb-2">
+                      <h3 className="font-display font-extrabold text-xl text-slate-900 dark:text-white">{r.title}</h3>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Accepting Applications</span>
+                      </span>
+                    </div>
+
+                    {r.description && <p className="text-sm text-slate-600 dark:text-slate-400 font-normal leading-relaxed">{r.description}</p>}
+
                     {r.requirements && (
-                      <div className="mt-3">
-                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Requirements:</p>
-                        <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line">{r.requirements}</p>
+                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80">
+                        <p className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1">Key Requirements:</p>
+                        <p className="text-sm text-slate-600 dark:text-slate-400 whitespace-pre-line leading-relaxed font-normal">{r.requirements}</p>
                       </div>
                     )}
-                    <p className="text-xs text-slate-500 mt-3">
-                      Open: {new Date(r.open_at).toLocaleDateString()} {r.close_at && `• Closes: ${new Date(r.close_at).toLocaleDateString()}`}
-                    </p>
+
+                    <div className="mt-4 text-xs font-semibold text-slate-500 dark:text-slate-400">
+                      Opened: {new Date(r.open_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      {r.close_at && ` • Closes: ${new Date(r.close_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`}
+                    </div>
                   </div>
                 ))}
               </div>
 
-              {/* Application form */}
-              <div className="card p-6 sm:p-8">
-                <h3 className="font-display font-bold text-xl text-slate-900 dark:text-white mb-6">Application Form</h3>
+              {/* Application Glass Form */}
+              <div className="glass-card p-8 sm:p-12 border border-slate-200/80 dark:border-white/10 shadow-2xl relative">
+                <h3 className="font-display font-extrabold text-2xl text-slate-900 dark:text-white mb-6">
+                  Member Application Form
+                </h3>
 
                 {submitState && (
-                  <div className={`p-4 rounded-lg mb-6 text-sm ${submitState.ok ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-800'}`}>
-                    {submitState.message}
+                  <div
+                    className={`p-4 rounded-xl mb-6 text-sm font-medium flex items-center gap-3 ${
+                      submitState.ok
+                        ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                        : 'bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/30'
+                    }`}
+                  >
+                    <span>{submitState.ok ? '✅' : '⚠️'}</span>
+                    <span>{submitState.message}</span>
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
                     <label className="label">Recruitment Drive *</label>
-                    <select value={selectedRecruitment} onChange={(e) => setSelectedRecruitment(e.target.value)} className="input" required>
+                    <select value={selectedRecruitment} onChange={(e) => setSelectedRecruitment(e.target.value)} className="input text-sm" required>
                       {recruitments.map(r => <option key={r.id} value={r.id}>{r.title}</option>)}
                     </select>
                   </div>
+
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div>
                       <label className="label">Full Name *</label>
-                      <input type="text" required value={form.applicant_name} onChange={(e) => setForm({ ...form, applicant_name: e.target.value })} className="input" placeholder="Jane Doe" />
+                      <input type="text" required value={form.applicant_name} onChange={(e) => setForm({ ...form, applicant_name: e.target.value })} className="input text-sm" placeholder="e.g. Alex Johnson" />
                     </div>
                     <div>
-                      <label className="label">Email *</label>
-                      <input type="email" required value={form.applicant_email} onChange={(e) => setForm({ ...form, applicant_email: e.target.value })} className="input" placeholder="jane@university.edu" />
+                      <label className="label">University Email *</label>
+                      <input type="email" required value={form.applicant_email} onChange={(e) => setForm({ ...form, applicant_email: e.target.value })} className="input text-sm" placeholder="alex@university.edu" />
                     </div>
                   </div>
+
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div>
-                      <label className="label">Phone</label>
-                      <input type="tel" value={form.applicant_phone} onChange={(e) => setForm({ ...form, applicant_phone: e.target.value })} className="input" placeholder="+1 555 000 0000" />
+                      <label className="label">Phone Number</label>
+                      <input type="tel" value={form.applicant_phone} onChange={(e) => setForm({ ...form, applicant_phone: e.target.value })} className="input text-sm" placeholder="+1 555 000 0000" />
                     </div>
                     <div>
                       <label className="label">Student ID</label>
-                      <input type="text" value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} className="input" placeholder="STU-2025-0001" />
+                      <input type="text" value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} className="input text-sm" placeholder="STU-2026-0001" />
                     </div>
                   </div>
+
                   <div>
                     <label className="label">Department Preference</label>
-                    <select value={form.department_preference} onChange={(e) => setForm({ ...form, department_preference: e.target.value })} className="input">
-                      <option value="">Select a department</option>
+                    <select value={form.department_preference} onChange={(e) => setForm({ ...form, department_preference: e.target.value })} className="input text-sm">
+                      <option value="">Select a preferred department</option>
                       {departments.map(d => <option key={d.id} value={d.name}>{d.name}</option>)}
                     </select>
                   </div>
+
                   <div>
-                    <label className="label">Why do you want to join? *</label>
-                    <textarea required rows={4} value={form.motivation} onChange={(e) => setForm({ ...form, motivation: e.target.value })} className="input resize-none" placeholder="Tell us what excites you about ClubSync..." />
+                    <label className="label">Why do you want to join ClubSync? *</label>
+                    <textarea required rows={4} value={form.motivation} onChange={(e) => setForm({ ...form, motivation: e.target.value })} className="input text-sm resize-none" placeholder="Tell us what excites you about building projects with ClubSync..." />
                   </div>
+
                   <div>
-                    <label className="label">Relevant Experience</label>
-                    <textarea rows={3} value={form.experience} onChange={(e) => setForm({ ...form, experience: e.target.value })} className="input resize-none" placeholder="Share any relevant skills, projects, or experience..." />
+                    <label className="label">Relevant Experience & Skills</label>
+                    <textarea rows={3} value={form.experience} onChange={(e) => setForm({ ...form, experience: e.target.value })} className="input text-sm resize-none" placeholder="Share any programming languages, design tools, or team leadership experience..." />
                   </div>
+
                   <FileUpload
                     bucket="documents"
                     folder="applications"
@@ -148,8 +177,9 @@ export default function RecruitmentPage() {
                     imagePreview={false}
                     helpText="PDF or Word document, max 5MB."
                   />
-                  <button type="submit" disabled={submitting} className="btn-primary w-full disabled:opacity-60 disabled:cursor-not-allowed">
-                    {submitting ? 'Submitting...' : 'Submit Application'}
+
+                  <button type="submit" disabled={submitting} className="btn-primary w-full py-3.5 text-base font-bold shadow-xl disabled:opacity-60 disabled:cursor-not-allowed">
+                    {submitting ? 'Submitting Application...' : 'Submit Application'}
                   </button>
                 </form>
               </div>
@@ -160,3 +190,4 @@ export default function RecruitmentPage() {
     </>
   );
 }
+
