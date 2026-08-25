@@ -256,8 +256,8 @@ Since the backend is entirely hosted on Supabase, any machine with the same `.en
 ## Screenshots
 
    ### Public Portal
-   ![Public Portal](docs/screenshots/Clubsync homepage.png)
-   ![Public Portal](docs/screenshots/Clubsync committee.png)
+   ![Public Portal](docs/screenshots/Clubsynchomepage.png)
+   ![Public Portal](docs/screenshots/Clubsynccommittee.png)
 
    ### Admin Dashboard
    ![Admin Dashboard](docs/screenshots/AdminPortal.png)
