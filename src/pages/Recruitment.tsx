@@ -141,11 +141,11 @@ export default function RecruitmentPage() {
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div>
                       <label className="label">Phone Number</label>
-                      <input type="tel" value={form.applicant_phone} onChange={(e) => setForm({ ...form, applicant_phone: e.target.value })} className="input text-sm" placeholder="+1 555 000 0000" />
+                      <input type="tel" value={form.applicant_phone} onChange={(e) => setForm({ ...form, applicant_phone: e.target.value })} className="input text-sm" placeholder="+880 0000000000" />
                     </div>
                     <div>
                       <label className="label">Student ID</label>
-                      <input type="text" value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} className="input text-sm" placeholder="STU-2026-0001" />
+                      <input type="text" value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} className="input text-sm" placeholder="232000000" />
                     </div>
                   </div>
 
