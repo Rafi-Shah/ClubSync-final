@@ -356,7 +356,7 @@ export default function Contact() {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 relative z-20">
                   {developers.map((dev, i) => (
                     <div key={i} className="bg-white/90 dark:bg-slate-900/70 backdrop-blur-md p-8 rounded-2xl flex flex-col items-center text-center shadow-lg shadow-slate-200/50 dark:shadow-none hover:shadow-2xl hover:shadow-slate-200/60 dark:hover:shadow-xl dark:hover:shadow-primary-900/10 transition-all duration-300 border border-slate-200/80 dark:border-slate-800/70 group hover:-translate-y-1">
-                      <div className="w-28 h-28 rounded-full overflow-hidden mb-5 border-4 border-slate-50 dark:border-slate-800 shadow-sm dark:shadow-md group-hover:scale-105 transition-transform duration-300 bg-white">
+                      <div className="w-40 h-40 rounded-full overflow-hidden mb-6 border-4 border-slate-50 dark:border-slate-800 shadow-sm dark:shadow-md group-hover:scale-105 transition-transform duration-300 bg-white">
                         <img src={dev.photo} alt={dev.name} className="w-full h-full object-cover" loading="lazy" />
                       </div>
                       <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{dev.name}</h3>
