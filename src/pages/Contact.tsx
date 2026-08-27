@@ -31,7 +31,7 @@ const developers = [
     facebook: 'https://www.facebook.com/aakhiakter0725',
     github: 'https://github.com/Akhi2425473',
     gmail: 'mailto:akhi199909@gmail.com',
-    linkedin: 'https://linkedin.com'
+    linkedin: 'https://www.linkedin.com/in/akhi-akter-8812743b2/'
   }
 ];
 
