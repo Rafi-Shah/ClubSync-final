@@ -13,6 +13,7 @@ import {
   Pagination,
 } from '../../components/admin/AdminUI';
 import { LoadingState, ErrorState, EmptyState } from '../../components/States';
+import FileUpload from '../../components/FileUpload';
 import {
   getSiteSettings,
   updateSiteSettings,
@@ -500,7 +501,14 @@ export default function WebsiteCMS() {
                   <Input label="Name" value={developerForm.name} onChange={(e) => setDeveloperForm({ ...developerForm, name: e.target.value })} />
                   <Input label="Role" value={developerForm.role} onChange={(e) => setDeveloperForm({ ...developerForm, role: e.target.value })} />
                 </div>
-                <Input label="Photo URL" value={developerForm.photo} onChange={(e) => setDeveloperForm({ ...developerForm, photo: e.target.value })} />
+                <FileUpload
+                  bucket="gallery"
+                  folder="developers"
+                  value={developerForm.photo}
+                  onChange={(url) => setDeveloperForm({ ...developerForm, photo: url })}
+                  label="Profile Picture"
+                  helpText="Upload a square image. Max size 3MB."
+                />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Input label="Facebook URL" value={developerForm.facebook} onChange={(e) => setDeveloperForm({ ...developerForm, facebook: e.target.value })} />
                   <Input label="GitHub URL" value={developerForm.github} onChange={(e) => setDeveloperForm({ ...developerForm, github: e.target.value })} />
