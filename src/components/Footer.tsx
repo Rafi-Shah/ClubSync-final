@@ -91,7 +91,6 @@ export default function Footer() {
             {[
               { label: 'Club Departments', path: '/departments' },
               { label: 'Executive Committee', path: '/committee' },
-              { label: 'Sponsors & Partners', path: '/sponsors' },
               { label: 'Help & FAQ', path: '/faq' },
               { label: 'Contact Us', path: '/contact' },
             ].map(item => (

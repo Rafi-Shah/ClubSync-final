@@ -54,7 +54,7 @@ function CounterCard({ item, index, isVisible }: { item: StatItem; index: number
 
   return (
     <div
-      className="group relative rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 p-6 sm:p-8 text-center shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+      className="group relative rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 p-5 text-center shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
       style={{ animationDelay: `${index * 100}ms` }}
     >
       {/* Background Accent Gradient Glow on Hover */}
@@ -62,12 +62,12 @@ function CounterCard({ item, index, isVisible }: { item: StatItem; index: number
 
       {/* Number Display */}
       <div className="relative z-10 space-y-1">
-        <p className="font-display font-extrabold text-4xl sm:text-5xl lg:text-6xl text-slate-900 dark:text-white tracking-tight leading-none group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+        <p className="font-display font-extrabold text-3xl sm:text-4xl lg:text-5xl text-slate-900 dark:text-white tracking-tight leading-none group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
           <span>{parsed.prefix}</span>
           <span>{formattedCount}</span>
           <span>{parsed.suffix}</span>
         </p>
-        <p className="text-xs sm:text-sm font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 pt-2">
+        <p className="text-[11px] sm:text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400 pt-1.5">
           {item.label}
         </p>
       </div>
@@ -84,7 +84,7 @@ export default function StatsSection({ stats }: { stats: StatItem[] }) {
   return (
     <section
       ref={ref}
-      className={`reveal ${visible ? 'is-visible' : ''} py-12 relative overflow-hidden bg-slate-900 dark:bg-slate-950 text-white`}
+      className={`reveal ${visible ? 'is-visible' : ''} py-6 relative overflow-hidden bg-slate-900 dark:bg-slate-950 text-white`}
     >
       {/* Subtle Background Mesh & Lighting */}
       <div className="pointer-events-none absolute inset-0 opacity-20 bg-grid-mesh" />

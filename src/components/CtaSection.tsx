@@ -16,13 +16,13 @@ export default function CtaSection() {
   };
 
   return (
-    <section ref={ref} className={`reveal ${visible ? 'is-visible' : ''} py-12 lg:py-24 relative overflow-hidden`}>
+    <section ref={ref} className={`reveal ${visible ? 'is-visible' : ''} py-6 lg:py-10 relative overflow-hidden`}>
       <div className="container-page">
         <div
           ref={containerRef}
           onMouseMove={handleMouseMove}
           onMouseLeave={() => setMousePos({ x: 50, y: 50 })}
-          className="relative rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-primary-950 p-7 sm:p-16 lg:p-20 text-center shadow-2xl border border-white/10 overflow-hidden group"
+          className="relative rounded-3xl bg-gradient-to-br from-slate-950 via-indigo-950 to-primary-950 p-6 sm:p-10 lg:p-12 text-center shadow-2xl border border-white/10 overflow-hidden group"
         >
 
           {/* Mouse-Following Glow Layer */}
@@ -57,7 +57,7 @@ export default function CtaSection() {
             </div>
 
             {/* Main Headline */}
-            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-display font-extrabold text-white tracking-tight leading-[1.1]">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-display font-extrabold text-white tracking-tight leading-[1.1]">
               Become Part of a Community That <br className="hidden sm:inline" />
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-white via-primary-200 to-indigo-300">
                 Builds, Learns & Grows
