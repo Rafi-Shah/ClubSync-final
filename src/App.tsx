@@ -15,7 +15,6 @@ const Events = lazy(() => import('./pages/Events'));
 const Gallery = lazy(() => import('./pages/Gallery'));
 const Achievements = lazy(() => import('./pages/Achievements'));
 const Recruitment = lazy(() => import('./pages/Recruitment'));
-const Sponsors = lazy(() => import('./pages/Sponsors'));
 const Contact = lazy(() => import('./pages/Contact'));
 const Faq = lazy(() => import('./pages/Faq'));
 const NotFound = lazy(() => import('./pages/NotFound'));
@@ -95,7 +94,6 @@ export default function App() {
           <Route path="gallery" element={<Gallery />} />
           <Route path="achievements" element={<Achievements />} />
           <Route path="recruitment" element={<Recruitment />} />
-          <Route path="sponsors" element={<Sponsors />} />
           <Route path="contact" element={<Contact />} />
           <Route path="faq" element={<Faq />} />
         </Route>

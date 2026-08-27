@@ -64,7 +64,7 @@ export default function ImageSlider({ slides, interval = 6000 }: { slides: Slide
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
-      className="relative min-h-[90vh] flex flex-col justify-between pt-28 pb-10 overflow-hidden bg-slate-50/70 dark:bg-slate-950/90 bg-grid-mesh"
+      className="relative min-h-[60vh] sm:min-h-[65vh] flex flex-col justify-between pt-24 pb-8 overflow-hidden bg-slate-50/70 dark:bg-slate-950/90 bg-grid-mesh"
       style={
         {
           '--mouse-x': `${mousePos.x}%`,

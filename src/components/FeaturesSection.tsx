@@ -122,7 +122,7 @@ function FeatureCard({ feature, index }: { feature: FeatureItem; index: number }
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="group relative rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 p-7 shadow-sm hover:shadow-xl transition-all duration-300 ease-out"
+      className="group relative rounded-2xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-white/10 p-5 shadow-sm hover:shadow-xl transition-all duration-300 ease-out"
       style={{
         transform: `perspective(1000px) rotateX(${tilt.rx}deg) rotateY(${tilt.ry}deg)`,
         animationDelay: `${index * 80}ms`,
@@ -137,9 +137,9 @@ function FeatureCard({ feature, index }: { feature: FeatureItem; index: number }
       />
 
       {/* Card Header Row: Icon + Number */}
-      <div className="flex items-center justify-between mb-5 relative z-10">
+      <div className="flex items-center justify-between mb-4 relative z-10">
         <div
-          className={`w-12 h-12 rounded-xl bg-gradient-to-tr ${feature.gradient} grid place-items-center shadow-md shadow-slate-900/10 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}
+          className={`w-10 h-10 rounded-xl bg-gradient-to-tr ${feature.gradient} grid place-items-center shadow-md shadow-slate-900/10 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}
         >
           {feature.iconSvg}
         </div>
@@ -153,7 +153,7 @@ function FeatureCard({ feature, index }: { feature: FeatureItem; index: number }
         <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-primary-600 dark:text-primary-400">
           {feature.tag}
         </span>
-        <h3 className="text-xl font-display font-bold text-slate-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+        <h3 className="text-lg font-display font-bold text-slate-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
           {feature.title}
         </h3>
         <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed font-normal">
@@ -173,7 +173,7 @@ export default function FeaturesSection() {
   return (
     <section
       ref={ref}
-      className={`reveal ${visible ? 'is-visible' : ''} py-20 lg:py-28 relative overflow-hidden bg-slate-50/40 dark:bg-slate-950/40 border-y border-slate-200/50 dark:border-white/5`}
+      className={`reveal ${visible ? 'is-visible' : ''} py-8 lg:py-10 relative overflow-hidden bg-slate-50/40 dark:bg-slate-950/40 border-y border-slate-200/50 dark:border-white/5`}
     >
       {/* Background Subtle Accent Glow */}
       <div className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[50rem] h-[25rem] bg-indigo-500/5 blur-[160px] rounded-full" />
@@ -181,9 +181,9 @@ export default function FeaturesSection() {
       <div className="container-page relative z-10">
         
         {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
+        <div className="text-center max-w-3xl mx-auto mb-10 space-y-4">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full text-xs font-semibold bg-primary-500/10 dark:bg-primary-400/10 border border-primary-500/20 text-primary-600 dark:text-primary-400">
-            <span>✨ WHY CLUBSYNC</span>
+            <span>o WHY CLUBSYNC</span>
           </div>
           <h2 className="section-title">
             Empowering Students to <br className="hidden sm:inline" />
@@ -195,7 +195,7 @@ export default function FeaturesSection() {
         </div>
 
         {/* Features Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
           {features.map((feature, i) => (
             <FeatureCard key={feature.id} feature={feature} index={i} />
           ))}

@@ -11,7 +11,6 @@ const navLinks = [
   { to: '/gallery', label: 'Gallery' },
   { to: '/achievements', label: 'Achievements' },
   { to: '/recruitment', label: 'Recruitment' },
-  { to: '/sponsors', label: 'Sponsors' },
   { to: '/faq', label: 'FAQ' },
   { to: '/contact', label: 'Contact' },
 ];
