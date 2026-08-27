@@ -2,40 +2,12 @@ import { useEffect, useState, useRef } from 'react';
 import PageHeader from '../components/PageHeader';
 import Section from '../components/Section';
 import { LoadingState, ErrorState } from '../components/States';
-import { getSiteSettings, submitContactMessage } from '../lib/api';
+import { getSiteSettings, submitContactMessage, getPublicDevelopers } from '../lib/api';
 import type { SiteSettings } from '../types';
 
-const developers = [
-  {
-    name: 'Rafi Shah',
-    role: 'Lead Developer',
-    photo: 'https://github.com/Rafi-Shah/ClubSync-final/blob/main/docs/screenshots/IMG_6161.JPG',
-    facebook: 'https://www.facebook.com/rafi.shah168',
-    github: 'https://github.com/Rafi-Shah',
-    gmail: 'mailto:rafishah7774440@gmail.com',
-    linkedin: 'https://www.linkedin.com/in/rafi-shah-95683a389'
-  },
-  {
-    name: 'Meherin Afrin Muna',
-    role: 'Frontend Designer',
-    photo: 'https://github.com/Rafi-Shah/ClubSync-final/blob/main/docs/screenshots/1000097000.jpg',
-    facebook: 'https://www.facebook.com/meherin.muna.2910',
-    github: 'https://github.com/Meherin-Afrin-Muna',
-    gmail: 'mailto:meherinmuna29@gmail.com',
-    linkedin: 'https://www.linkedin.com/in/meherin-afrin-muna-79167a371'
-  },
-  {
-    name: 'Akhi Akter',
-    role: 'Data Entry',
-    photo: 'https://github.com/Rafi-Shah/ClubSync-final/blob/main/docs/screenshots/akhi.jpeg',
-    facebook: 'https://www.facebook.com/aakhiakter0725',
-    github: 'https://github.com/Akhi2425473',
-    gmail: 'mailto:akhi199909@gmail.com',
-    linkedin: 'https://www.linkedin.com/in/akhi-akter-8812743b2/'
-  }
-];
 export default function Contact() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [developers, setDevelopers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState<'contact' | 'devs'>('contact');
@@ -49,8 +21,14 @@ export default function Contact() {
   const observerRef = useRef<MutationObserver | null>(null);
 
   useEffect(() => {
-    getSiteSettings()
-      .then(setSettings)
+    Promise.all([
+      getSiteSettings(),
+      getPublicDevelopers()
+    ])
+      .then(([settingsData, devsData]) => {
+        setSettings(settingsData);
+        setDevelopers(devsData);
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
