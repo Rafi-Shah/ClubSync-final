@@ -2,41 +2,12 @@ import { useEffect, useState, useRef } from 'react';
 import PageHeader from '../components/PageHeader';
 import Section from '../components/Section';
 import { LoadingState, ErrorState } from '../components/States';
-import { getSiteSettings, submitContactMessage } from '../lib/api';
+import { getSiteSettings, submitContactMessage, getPublicDevelopers } from '../lib/api';
 import type { SiteSettings } from '../types';
-
-const developers = [
-  {
-    name: 'Rafi Shah',
-    role: 'Lead Developer',
-    photo: 'https://ui-avatars.com/api/?name=Rafi+Shah&background=6366f1&color=fff&size=256',
-    facebook: 'https://www.facebook.com/rafi.shah168',
-    github: 'https://github.com/Rafi-Shah',
-    gmail: 'mailto:rafishah7774440@gmail.com',
-    linkedin: 'https://www.linkedin.com/in/rafi-shah-95683a389'
-  },
-  {
-    name: 'Meherin Afrin Muna',
-    role: 'Frontend Designer',
-    photo: 'https://ui-avatars.com/api/?name=Jane+Doe&background=8b5cf6&color=fff&size=256',
-    facebook: 'https://www.facebook.com/meherin.muna.2910',
-    github: 'https://github.com/Meherin-Afrin-Muna',
-    gmail: 'mailto:meherinmuna29@gmail.com',
-    linkedin: 'https://www.linkedin.com/in/meherin-afrin-muna-79167a371'
-  },
-  {
-    name: 'Akhi Akter',
-    role: 'Data Entry',
-    photo: 'https://ui-avatars.com/api/?name=John+Smith&background=10b981&color=fff&size=256',
-    facebook: 'https://www.facebook.com/aakhiakter0725',
-    github: 'https://github.com/Akhi2425473',
-    gmail: 'mailto:akhi199909@gmail.com',
-    linkedin: 'https://www.linkedin.com/in/akhi-akter-8812743b2/'
-  }
-];
 
 export default function Contact() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+  const [developers, setDevelopers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState<'contact' | 'devs'>('contact');
@@ -50,8 +21,14 @@ export default function Contact() {
   const observerRef = useRef<MutationObserver | null>(null);
 
   useEffect(() => {
-    getSiteSettings()
-      .then(setSettings)
+    Promise.all([
+      getSiteSettings(),
+      getPublicDevelopers()
+    ])
+      .then(([settingsData, devsData]) => {
+        setSettings(settingsData);
+        setDevelopers(devsData);
+      })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
@@ -356,7 +333,7 @@ export default function Contact() {
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 relative z-20">
                   {developers.map((dev, i) => (
                     <div key={i} className="bg-white/90 dark:bg-slate-900/70 backdrop-blur-md p-8 rounded-2xl flex flex-col items-center text-center shadow-lg shadow-slate-200/50 dark:shadow-none hover:shadow-2xl hover:shadow-slate-200/60 dark:hover:shadow-xl dark:hover:shadow-primary-900/10 transition-all duration-300 border border-slate-200/80 dark:border-slate-800/70 group hover:-translate-y-1">
-                      <div className="w-28 h-28 rounded-full overflow-hidden mb-5 border-4 border-slate-50 dark:border-slate-800 shadow-sm dark:shadow-md group-hover:scale-105 transition-transform duration-300 bg-white">
+                      <div className="w-40 h-40 rounded-full overflow-hidden mb-6 border-4 border-slate-50 dark:border-slate-800 shadow-sm dark:shadow-md group-hover:scale-105 transition-transform duration-300 bg-white">
                         <img src={dev.photo} alt={dev.name} className="w-full h-full object-cover" loading="lazy" />
                       </div>
                       <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{dev.name}</h3>

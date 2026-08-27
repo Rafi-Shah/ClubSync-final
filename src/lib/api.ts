@@ -113,3 +113,13 @@ export async function submitApplication(input: {
   });
   if (error) throw error;
 }
+export async function getPublicDevelopers() {
+  const { data, error } = await supabase
+    .from("developer_team")
+    .select("*")
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+

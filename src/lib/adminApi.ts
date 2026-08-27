@@ -1038,3 +1038,32 @@ export async function getDashboardStats() {
     unreadContacts: unreadMessages.data?.length ?? 0,
   };
 }
+// ============ DEVELOPER TEAM ============
+export async function getDevelopers() {
+  const { data, error } = await supabase
+    .from("developer_team")
+    .select("*")
+    .order("sort_order", { ascending: true });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function createDeveloper(input: Record<string, any>) {
+  const { data, error } = await supabase.from("developer_team").insert(input).select().single();
+  if (error) throw error;
+  logActivity("create", "developer_team", data?.id ?? null, `Added developer`);
+  return data;
+}
+
+export async function updateDeveloper(id: string, updates: Record<string, any>) {
+  const { error } = await supabase.from("developer_team").update(updates).eq("id", id);
+  if (error) throw error;
+  logActivity("update", "developer_team", id, `Updated developer`);
+}
+
+export async function deleteDeveloper(id: string) {
+  const { error } = await supabase.from("developer_team").delete().eq("id", id);
+  if (error) throw error;
+  logActivity("delete", "developer_team", id, `Deleted developer`);
+}
+
