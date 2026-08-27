@@ -27,7 +27,7 @@ const developers = [
   {
     name: 'Akhi Akter',
     role: 'Data Entry',
-    photo: 'https://ui-avatars.com/api/?name=John+Smith&background=10b981&color=fff&size=256',
+    photo: 'docs/screenshots/akhi.jpeg',
     facebook: 'https://www.facebook.com/aakhiakter0725',
     github: 'https://github.com/Akhi2425473',
     gmail: 'mailto:akhi199909@gmail.com',
