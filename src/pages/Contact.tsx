@@ -18,7 +18,7 @@ const developers = [
   {
     name: 'Meherin Afrin Muna',
     role: 'Frontend Designer',
-    photo: 'https://ui-avatars.com/api/?name=Jane+Doe&background=8b5cf6&color=fff&size=256',
+    photo: 'docs/screenshots/1000097000.jpg',
     facebook: 'https://www.facebook.com/meherin.muna.2910',
     github: 'https://github.com/Meherin-Afrin-Muna',
     gmail: 'mailto:meherinmuna29@gmail.com',
