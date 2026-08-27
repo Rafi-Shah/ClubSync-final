@@ -18,7 +18,7 @@ const developers = [
   {
     name: 'Meherin Afrin Muna',
     role: 'Frontend Designer',
-    photo: 'https://raw.githubusercontent.com/Rafi-Shah/ClubSync/main/docs/screenshots/1000097000.jpg',
+    photo: 'https://github.com/Rafi-Shah/ClubSync-final/blob/main/docs/screenshots/1000097000.jpg',
     facebook: 'https://www.facebook.com/meherin.muna.2910',
     github: 'https://github.com/Meherin-Afrin-Muna',
     gmail: 'mailto:meherinmuna29@gmail.com',
