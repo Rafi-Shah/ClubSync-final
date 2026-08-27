@@ -311,7 +311,7 @@ export default function Contact() {
           <div className={activeTab === 'devs' ? 'block' : 'hidden'}>
             <div 
               ref={vantaRef} 
-              className="relative rounded-[2rem] overflow-hidden animate-fade-in-up border border-slate-200/50 dark:border-slate-800/50 shadow-2xl transition-all"
+              className="relative rounded-[2rem] overflow-hidden animate-fade-in border border-slate-200/50 dark:border-slate-800/50 shadow-2xl transition-all"
               style={{ minHeight: '600px' }}
             >
               {/* Fallback Background for mobile/low-perf devices */}
@@ -320,7 +320,7 @@ export default function Contact() {
               {/* Semi-transparent overlay to ensure text/card readability over the Vanta animation */}
               <div className="absolute inset-0 bg-white/60 dark:bg-slate-950/60 backdrop-blur-[2px] -z-10 pointer-events-none transition-colors duration-500"></div>
 
-              <div className="relative z-10 max-w-5xl mx-auto p-8 sm:p-12">
+              <div className="relative z-10 max-w-5xl mx-auto p-8 sm:p-12 animate-fade-in-up">
                 <div className="text-center mb-10">
                   <h2 className="text-3xl font-display font-extrabold text-slate-900 dark:text-white tracking-tight drop-shadow-sm dark:drop-shadow-md">
                     Meet the Developers
@@ -332,8 +332,8 @@ export default function Contact() {
 
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 relative z-20">
                   {developers.map((dev, i) => (
-                    <div key={i} className="bg-white/90 dark:bg-slate-900/70 backdrop-blur-md p-8 rounded-2xl flex flex-col items-center text-center shadow-lg shadow-slate-200/50 dark:shadow-none hover:shadow-2xl hover:shadow-slate-200/60 dark:hover:shadow-xl dark:hover:shadow-primary-900/10 transition-all duration-300 border border-slate-200/80 dark:border-slate-800/70 group hover:-translate-y-1">
-                      <div className="w-40 h-40 rounded-full overflow-hidden mb-6 border-4 border-slate-50 dark:border-slate-800 shadow-sm dark:shadow-md group-hover:scale-105 transition-transform duration-300 bg-white">
+                    <div key={i} className="bg-white/90 dark:bg-slate-900/70 backdrop-blur-md p-8 rounded-2xl flex flex-col items-center text-center shadow-lg shadow-slate-200/50 dark:shadow-none hover:shadow-2xl hover:shadow-slate-200/60 dark:hover:shadow-xl dark:hover:shadow-primary-900/10 transition-all duration-300 border border-slate-200/80 dark:border-slate-800/70 group hover:-translate-y-1 transform-gpu backface-hidden relative overflow-hidden">
+                      <div className="w-40 h-40 rounded-full overflow-hidden mb-6 border-4 border-slate-50 dark:border-slate-800 shadow-sm dark:shadow-md group-hover:scale-105 transition-transform duration-300 bg-white relative z-10">
                         <img src={dev.photo} alt={dev.name} className="w-full h-full object-cover" loading="lazy" />
                       </div>
                       <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-1">{dev.name}</h3>
