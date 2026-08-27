@@ -9,7 +9,7 @@ const developers = [
   {
     name: 'Rafi Shah',
     role: 'Lead Developer',
-    photo: '/docs/screenshots/IMG_6161.JPG',
+    photo: 'https://raw.githubusercontent.com/Rafi-Shah/ClubSync/main/docs/screenshots/IMG_6161.JPG',
     facebook: 'https://www.facebook.com/rafi.shah168',
     github: 'https://github.com/Rafi-Shah',
     gmail: 'mailto:rafishah7774440@gmail.com',
@@ -18,7 +18,7 @@ const developers = [
   {
     name: 'Meherin Afrin Muna',
     role: 'Frontend Designer',
-    photo: '/docs/screenshots/1000097000.jpg',
+    photo: 'https://raw.githubusercontent.com/Rafi-Shah/ClubSync/main/docs/screenshots/1000097000.jpg',
     facebook: 'https://www.facebook.com/meherin.muna.2910',
     github: 'https://github.com/Meherin-Afrin-Muna',
     gmail: 'mailto:meherinmuna29@gmail.com',
@@ -27,14 +27,13 @@ const developers = [
   {
     name: 'Akhi Akter',
     role: 'Data Entry',
-    photo: '/docs/screenshots/akhi.jpeg',
+    photo: 'https://raw.githubusercontent.com/Rafi-Shah/ClubSync/main/docs/screenshots/akhi.jpeg',
     facebook: 'https://www.facebook.com/aakhiakter0725',
     github: 'https://github.com/Akhi2425473',
     gmail: 'mailto:akhi199909@gmail.com',
     linkedin: 'https://www.linkedin.com/in/akhi-akter-8812743b2/'
   }
 ];
-
 export default function Contact() {
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
