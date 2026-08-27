@@ -9,7 +9,7 @@ const developers = [
   {
     name: 'Rafi Shah',
     role: 'Lead Developer',
-    photo: 'https://ui-avatars.com/api/?name=Rafi+Shah&background=6366f1&color=fff&size=256',
+    photo: 'docs/screenshots/IMG_6161.JPG',
     facebook: 'https://www.facebook.com/rafi.shah168',
     github: 'https://github.com/Rafi-Shah',
     gmail: 'mailto:rafishah7774440@gmail.com',
