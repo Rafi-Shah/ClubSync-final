@@ -9,7 +9,7 @@ const developers = [
   {
     name: 'Rafi Shah',
     role: 'Lead Developer',
-    photo: 'https://raw.githubusercontent.com/Rafi-Shah/ClubSync/main/docs/screenshots/IMG_6161.JPG',
+    photo: 'https://github.com/Rafi-Shah/ClubSync-final/blob/main/docs/screenshots/IMG_6161.JPG',
     facebook: 'https://www.facebook.com/rafi.shah168',
     github: 'https://github.com/Rafi-Shah',
     gmail: 'mailto:rafishah7774440@gmail.com',
@@ -27,7 +27,7 @@ const developers = [
   {
     name: 'Akhi Akter',
     role: 'Data Entry',
-    photo: 'https://raw.githubusercontent.com/Rafi-Shah/ClubSync/main/docs/screenshots/akhi.jpeg',
+    photo: 'https://github.com/Rafi-Shah/ClubSync-final/blob/main/docs/screenshots/akhi.jpeg',
     facebook: 'https://www.facebook.com/aakhiakter0725',
     github: 'https://github.com/Akhi2425473',
     gmail: 'mailto:akhi199909@gmail.com',
