@@ -71,6 +71,7 @@ export default function Recruitment() {
   const [reviewApp, setReviewApp] = useState<Application | null>(null);
   const [reviewForm, setReviewForm] = useState({ status: 'submitted', review_notes: '' });
   const [reviewSaving, setReviewSaving] = useState(false);
+  const [viewingCv, setViewingCv] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -367,45 +368,102 @@ export default function Recruitment() {
         title="Review Application"
       >
         {reviewApp && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Name</p>
-                <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.applicant_name}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Email</p>
-                <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.applicant_email}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Phone</p>
-                <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.applicant_phone || '—'}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Position</p>
-                <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.recruitment?.title ?? '—'}</p>
+          <div className="space-y-6">
+            
+            {/* Personal Information */}
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-1 mb-3">Personal Information</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Full Name</p>
+                  <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.applicant_name}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">University Email</p>
+                  <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.applicant_email}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Phone</p>
+                  <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.applicant_phone || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Student ID</p>
+                  <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.student_id || 'Not provided'}</p>
+                </div>
               </div>
             </div>
 
-            {reviewApp.cover_letter && (
+            {/* Department */}
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-1 mb-3">Department</h4>
               <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Cover Letter</p>
-                <p className="text-sm text-slate-700 dark:text-slate-300 mt-1 whitespace-pre-wrap">{reviewApp.cover_letter}</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Department Preference</p>
+                <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.department_preference || 'Not provided'}</p>
               </div>
-            )}
-            {reviewApp.resume_url && (
-              <div>
-                <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Resume</p>
-                <a
-                  href={reviewApp.resume_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-primary-600 dark:text-primary-400 hover:underline mt-1 inline-block"
-                >
-                  View Resume
-                </a>
+            </div>
+
+            {/* Application Responses */}
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-1 mb-3">Application Responses</h4>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Why do you want to join ClubSync?</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1 whitespace-pre-wrap">{reviewApp.motivation || 'Not provided'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Relevant Experience & Skills</p>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 mt-1 whitespace-pre-wrap">{reviewApp.experience || 'Not provided'}</p>
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Application Information */}
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-1 mb-3">Application Information</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Status</p>
+                  <p className="text-sm text-slate-900 dark:text-white mt-1 capitalize">{reviewApp.status}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Application Date</p>
+                  <p className="text-sm text-slate-900 dark:text-white mt-1">
+                    {reviewApp.created_at ? new Date(reviewApp.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not provided'}
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase">Recruitment Drive / Position</p>
+                  <p className="text-sm text-slate-900 dark:text-white mt-1">{reviewApp.recruitment?.title ?? 'Not provided'}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* CV / Resume */}
+            <div>
+              <h4 className="text-sm font-bold text-slate-900 dark:text-white border-b border-slate-200 dark:border-slate-700 pb-1 mb-3">CV / Resume</h4>
+              {reviewApp.cv_url ? (
+                <div className="mt-2 flex gap-3 items-center">
+                  <button 
+                    onClick={() => setViewingCv(reviewApp.cv_url)}
+                    className="btn-outline text-sm flex items-center gap-2 py-1.5"
+                    type="button"
+                  >
+                    <span>📄</span> View CV
+                  </button>
+                  <a
+                    href={reviewApp.cv_url}
+                    download
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-primary-600 dark:text-primary-400 hover:underline inline-block"
+                  >
+                    Download CV
+                  </a>
+                </div>
+              ) : (
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Not provided</p>
+              )}
+            </div>
 
             <Select
               label="Status"
@@ -433,6 +491,41 @@ export default function Recruitment() {
             {reviewSaving ? 'Saving...' : 'Save Review'}
           </button>
         </div>
+      </Modal>
+
+      <Modal
+        open={!!viewingCv}
+        onClose={() => setViewingCv(null)}
+        title="View CV"
+      >
+        {viewingCv && (
+          <div className="h-[70vh] w-full mt-4 flex flex-col">
+            {viewingCv.toLowerCase().endsWith('.pdf') ? (
+              <object data={viewingCv} type="application/pdf" className="w-full h-full border-0 rounded-md">
+                <div className="flex flex-col items-center justify-center h-full text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-dashed border-slate-200 dark:border-slate-700 p-6 text-center">
+                  <p>Failed to load CV or preview not supported for this browser.</p>
+                  <a href={viewingCv} target="_blank" rel="noreferrer" className="btn mt-4">
+                    Download / Open CV
+                  </a>
+                </div>
+              </object>
+            ) : viewingCv.match(/\.(jpeg|jpg|gif|png)$/i) ? (
+               <div className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-800/50 rounded-md border border-slate-200 dark:border-slate-700 flex items-center justify-center p-4">
+                 <img src={viewingCv} alt="CV Preview" className="max-w-full max-h-full object-contain" />
+               </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-slate-500 bg-slate-50 dark:bg-slate-800/50 rounded-md border border-dashed border-slate-200 dark:border-slate-700 p-6 text-center">
+                <p>Preview not available for this file type.</p>
+                <a href={viewingCv} target="_blank" rel="noreferrer" className="btn mt-4">
+                  Download to view
+                </a>
+              </div>
+            )}
+            <div className="flex justify-end mt-4">
+              <button onClick={() => setViewingCv(null)} className="btn-outline">Close</button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <ConfirmDelete
