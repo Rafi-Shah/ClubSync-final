@@ -39,7 +39,7 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 font-display font-bold text-2xl text-slate-900 dark:text-white">
-            <span className="w-10 h-10 rounded-xl bg-primary-600 text-white grid place-items-center">CS</span>
+            <img src="/Clubsync-web.png" alt="ClubSync Logo" className="w-10 h-10 object-contain" />
             ClubSync
           </Link>
           <p className="text-slate-500 dark:text-slate-400 mt-2">Member Portal Sign In</p>

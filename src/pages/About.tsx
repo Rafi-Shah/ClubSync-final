@@ -25,7 +25,7 @@ export default function About() {
     <>
       <PageHeader
         title="About ClubSync"
-        subtitle={settings?.tagline ?? 'Where Passion Meets Purpose — Driving Campus Innovation & Excellence.'}
+        subtitle={settings?.tagline ?? 'Driving Campus Innovation & Excellence.'}
         breadcrumb="Home / About"
       />
 

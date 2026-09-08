@@ -30,9 +30,7 @@ export default function Footer() {
         {/* Brand Column (Spans 2 on desktop) */}
         <div className="lg:col-span-2 space-y-4">
           <Link to="/" className="inline-flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-primary-600 via-indigo-600 to-violet-600 text-white grid place-items-center font-display font-extrabold text-base shadow-lg shadow-primary-500/20 group-hover:scale-105 transition-transform">
-              CS
-            </div>
+            <img src="/Clubsync-web.png" alt="ClubSync Logo" className="w-10 h-10 object-contain group-hover:scale-105 transition-transform" />
             <span className="font-display font-extrabold text-2xl text-white tracking-tight">
               {settings?.club_name ?? 'ClubSync'}
             </span>
