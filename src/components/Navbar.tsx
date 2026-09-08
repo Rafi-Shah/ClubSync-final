@@ -50,9 +50,7 @@ export default function Navbar() {
               to="/"
               className="flex items-center gap-3 group focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 rounded-xl"
             >
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-primary-600 via-indigo-600 to-violet-500 text-white font-display font-extrabold grid place-items-center text-sm shadow-md shadow-primary-500/25 group-hover:scale-105 group-hover:shadow-lg group-hover:shadow-primary-500/35 transition-all duration-300">
-                CS
-              </div>
+              <img src="/Clubsync-web.png" alt="ClubSync Logo" className="w-9 h-9 object-contain group-hover:scale-105 transition-transform duration-300" />
               <div className="flex flex-col">
                 <span className="font-display font-extrabold text-lg sm:text-xl tracking-tight text-slate-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                   Club<span className="bg-gradient-to-r from-primary-600 to-violet-600 dark:from-primary-400 dark:to-violet-400 bg-clip-text text-transparent">Sync</span>
@@ -126,7 +124,7 @@ export default function Navbar() {
         >
           <div className="flex items-center justify-between p-5 border-b border-slate-200/80 dark:border-slate-800/80">
             <div className="flex items-center gap-2">
-              <span className="w-8 h-8 rounded-lg bg-primary-600 text-white grid place-items-center font-bold text-xs">CS</span>
+              <img src="/Clubsync-web.png" alt="ClubSync Logo" className="w-8 h-8 object-contain" />
               <span className="font-display font-bold text-base text-slate-900 dark:text-white">Navigation</span>
             </div>
             <button

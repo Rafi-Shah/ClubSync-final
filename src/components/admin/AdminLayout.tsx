@@ -186,7 +186,7 @@ function SidebarContent({ sections, member, email, initials, onSignOut, onItemCl
   return (
     <div className="flex flex-col h-full">
       <div className="h-16 flex items-center gap-2 px-5 border-b border-slate-200 dark:border-slate-800 shrink-0">
-        <span className="w-8 h-8 rounded-lg bg-primary-600 text-white grid place-items-center text-xs font-bold">CS</span>
+        <img src="/Clubsync-web.png" alt="ClubSync Logo" className="w-8 h-8 object-contain" />
         <span className="font-display font-bold text-slate-900 dark:text-white">Admin Portal</span>
       </div>
 

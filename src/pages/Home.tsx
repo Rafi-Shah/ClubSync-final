@@ -11,7 +11,7 @@ import { getPublicEvents, getSiteSettings, getAchievements } from '../lib/api';
 import type { ClubEvent, SiteSettings, Achievement } from '../types';
 
 const heroSlides = [
-  { image_url: 'https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=1600', title: 'Where Passion Meets Purpose', subtitle: 'Join a community of innovators, builders, and leaders shaping the future of our campus.' },
+  { image_url: 'https://images.pexels.com/photos/3184360/pexels-photo-3184360.jpeg?auto=compress&cs=tinysrgb&w=1600', title: 'Welcome to ClubSync', subtitle: 'Join a community of innovators, builders, and leaders shaping the future of our campus.' },
   { image_url: 'https://images.pexels.com/photos/3184339/pexels-photo-3184339.jpeg?auto=compress&cs=tinysrgb&w=1600', title: 'Build. Learn. Grow.', subtitle: 'Hands-on projects, workshops, and events that turn ideas into impact.' },
   { image_url: 'https://images.pexels.com/photos/3184460/pexels-photo-3184460.jpeg?auto=compress&cs=tinysrgb&w=1600', title: 'Your Community Awaits', subtitle: 'Connect with 500+ members across six departments and dozens of teams.' },
 ];
