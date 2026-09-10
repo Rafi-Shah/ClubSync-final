@@ -12,6 +12,12 @@ export default function MyProfile() {
     phone: member?.phone ?? '',
     bio: member?.bio ?? '',
     avatar_url: member?.avatar_url ?? '',
+    student_id: member?.student_id ?? '',
+    batch: member?.batch ?? '',
+    facebook: member?.facebook ?? '',
+    github: member?.github ?? '',
+    linkedin: member?.linkedin ?? '',
+    gmail: member?.gmail ?? '',
   });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -27,6 +33,12 @@ export default function MyProfile() {
         phone: form.phone || null,
         bio: form.bio || null,
         avatar_url: form.avatar_url || null,
+        student_id: form.student_id || null,
+        batch: form.batch || null,
+        facebook: form.facebook || null,
+        github: form.github || null,
+        linkedin: form.linkedin || null,
+        gmail: form.gmail || null,
       });
       await refreshMember();
       setMsg({ ok: true, text: 'Profile updated successfully.' });
@@ -75,14 +87,50 @@ export default function MyProfile() {
         <div className="lg:col-span-2 card p-6">
           {editing ? (
             <form onSubmit={handleSave} className="space-y-5">
-              <div>
-                <label className="label">Full Name</label>
-                <input type="text" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="input" />
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="label">Full Name</label>
+                  <input type="text" required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} className="input" />
+                </div>
+                <div>
+                  <label className="label">Phone</label>
+                  <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input" />
+                </div>
               </div>
-              <div>
-                <label className="label">Phone</label>
-                <input type="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input" />
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="label">Student ID</label>
+                  <input type="text" value={form.student_id} onChange={(e) => setForm({ ...form, student_id: e.target.value })} className="input" placeholder="e.g. 21-XXXXX-1" />
+                </div>
+                <div>
+                  <label className="label">Batch</label>
+                  <input type="text" value={form.batch} onChange={(e) => setForm({ ...form, batch: e.target.value })} className="input" placeholder="e.g. 21-1" />
+                </div>
               </div>
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="label">Facebook Profile URL</label>
+                  <input type="url" value={form.facebook} onChange={(e) => setForm({ ...form, facebook: e.target.value })} className="input" placeholder="https://facebook.com/..." />
+                </div>
+                <div>
+                  <label className="label">LinkedIn Profile URL</label>
+                  <input type="url" value={form.linkedin} onChange={(e) => setForm({ ...form, linkedin: e.target.value })} className="input" placeholder="https://linkedin.com/in/..." />
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="label">GitHub Profile URL</label>
+                  <input type="url" value={form.github} onChange={(e) => setForm({ ...form, github: e.target.value })} className="input" placeholder="https://github.com/..." />
+                </div>
+                <div>
+                  <label className="label">Contact Gmail</label>
+                  <input type="email" value={form.gmail} onChange={(e) => setForm({ ...form, gmail: e.target.value })} className="input" placeholder="example@gmail.com" />
+                </div>
+              </div>
+
               <div>
                 <FileUpload
                   bucket="avatars"
@@ -104,14 +152,41 @@ export default function MyProfile() {
               </div>
             </form>
           ) : (
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Phone</p>
-                <p className="text-slate-900 dark:text-white">{member.phone || 'Not set'}</p>
+            <div className="space-y-6">
+              <div className="grid sm:grid-cols-2 gap-6">
+                <div>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Phone</p>
+                  <p className="text-slate-900 dark:text-white font-medium">{member.phone || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Student ID</p>
+                  <p className="text-slate-900 dark:text-white font-medium">{member.student_id || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Batch</p>
+                  <p className="text-slate-900 dark:text-white font-medium">{member.batch || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Facebook</p>
+                  <p className="text-slate-900 dark:text-white font-medium truncate">{member.facebook || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">LinkedIn</p>
+                  <p className="text-slate-900 dark:text-white font-medium truncate">{member.linkedin || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">GitHub</p>
+                  <p className="text-slate-900 dark:text-white font-medium truncate">{member.github || 'Not set'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Gmail</p>
+                  <p className="text-slate-900 dark:text-white font-medium truncate">{member.gmail || 'Not set'}</p>
+                </div>
               </div>
+              
               <div>
                 <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-1">Bio</p>
-                <p className="text-slate-900 dark:text-white">{member.bio || 'No bio added yet.'}</p>
+                <p className="text-slate-900 dark:text-white whitespace-pre-line leading-relaxed">{member.bio || 'No bio added yet.'}</p>
               </div>
             </div>
           )}

@@ -76,7 +76,7 @@ export async function getExecutiveCommittee(): Promise<ExecutiveWithProfile[]> {
   const memberIds = execRows.map((r) => r.member_id);
   const { data: profiles, error: profileErr } = await supabase
     .from('public_member_profiles')
-    .select('id, full_name, avatar_url, bio')
+    .select('id, full_name, avatar_url, bio, student_id, batch, facebook, github, linkedin, gmail')
     .in('id', memberIds);
   if (profileErr) throw profileErr;
 
