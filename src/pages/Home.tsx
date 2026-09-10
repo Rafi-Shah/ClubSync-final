@@ -17,10 +17,10 @@ const heroSlides = [
 ];
 
 const stats = [
-  { value: '500+', label: 'Active Members' },
-  { value: '6', label: 'Departments' },
-  { value: '100+', label: 'Events Hosted' },
-  { value: '2,000+', label: 'Volunteer Hours' },
+  { value: '50+', label: 'Active Members' },
+  { value: '7', label: 'Departments' },
+  { value: '20+', label: 'Events Hosted' },
+  { value: '100+', label: 'Volunteer Hours' },
 ];
 
 export default function Home() {
