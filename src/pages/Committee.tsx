@@ -148,15 +148,15 @@ export default function Committee() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {selectedMember.member?.student_id && (
                       <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 shadow-sm flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422A12.083 12.083 0 0112 21.5a12.083 12.083 0 01-6.16-10.922L12 14z" /></svg>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Student ID</span>
-                          <span className="font-bold text-slate-900 dark:text-white">{selectedMember.member.student_id}</span>
+                          <span className="block font-bold text-slate-900 dark:text-white truncate">{selectedMember.member.student_id}</span>
                         </div>
                       </div>
                     )}
@@ -165,9 +165,9 @@ export default function Committee() {
                         <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                           <span className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Batch</span>
-                          <span className="font-bold text-slate-900 dark:text-white">{selectedMember.member.batch}</span>
+                          <span className="block font-bold text-slate-900 dark:text-white truncate">{selectedMember.member.batch}</span>
                         </div>
                       </div>
                     )}
