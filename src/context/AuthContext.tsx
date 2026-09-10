@@ -13,6 +13,12 @@ export interface MemberProfile {
   bio: string | null;
   status: string;
   joined_at: string | null;
+  student_id?: string | null;
+  batch?: string | null;
+  facebook?: string | null;
+  github?: string | null;
+  linkedin?: string | null;
+  gmail?: string | null;
 }
 
 interface RoleInfo {

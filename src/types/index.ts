@@ -87,7 +87,18 @@ export interface ExecutiveMember {
 }
 
 export interface ExecutiveWithProfile extends ExecutiveMember {
-  member?: { full_name: string; email: string; avatar_url: string | null; bio: string | null } | null;
+  member?: { 
+    full_name: string; 
+    email: string; 
+    avatar_url: string | null; 
+    bio: string | null;
+    student_id?: string | null;
+    batch?: string | null;
+    facebook?: string | null;
+    github?: string | null;
+    linkedin?: string | null;
+    gmail?: string | null;
+  } | null;
 }
 
 export interface Recruitment {
