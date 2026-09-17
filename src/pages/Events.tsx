@@ -12,6 +12,7 @@ export default function Events() {
   const [error, setError] = useState(false);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedEvent, setSelectedEvent] = useState<ClubEvent | null>(null);
 
   useEffect(() => {
     getPublicEvents()
@@ -31,7 +32,7 @@ export default function Events() {
     });
   }, [events, query, statusFilter]);
 
-  const statuses = ['all', 'published', 'ongoing', 'completed'];
+  const statuses = ['all', 'published', 'completed'];
 
   if (loading) return <LoadingState message="Loading events schedule..." />;
   if (error) return <ErrorState message="Failed to load events." onRetry={() => window.location.reload()} />;
@@ -116,7 +117,7 @@ export default function Events() {
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
               {filtered.map((e, i) => (
                 <div key={e.id} className="animate-fade-in-up" style={{ animationDelay: `${i * 80}ms` }}>
-                  <EventCard event={e} />
+                  <EventCard event={e} onClick={() => setSelectedEvent(e)} />
                 </div>
               ))}
             </div>
@@ -127,6 +128,81 @@ export default function Events() {
             />
           )}
         </div>
+
+        {/* Event Details Modal */}
+        {selectedEvent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fade-in">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-slate-200 dark:border-slate-800 relative">
+              <button
+                onClick={() => setSelectedEvent(null)}
+                className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors z-10"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              
+              {selectedEvent.cover_image_url && (
+                <div className="w-full h-64 sm:h-80 relative bg-slate-950">
+                  <img
+                    src={selectedEvent.cover_image_url}
+                    alt={selectedEvent.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent" />
+                </div>
+              )}
+              
+              <div className="p-6 sm:p-8 space-y-6">
+                <div>
+                  <div className="flex items-center gap-3 mb-3">
+                    <span className={`px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider rounded-md border ${
+                      selectedEvent.status === 'published' ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' :
+                      selectedEvent.status === 'completed' ? 'bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-500/10 dark:text-slate-400 dark:border-slate-500/20' :
+                      'bg-primary-50 text-primary-700 border-primary-200 dark:bg-primary-500/10 dark:text-primary-400 dark:border-primary-500/20'
+                    }`}>
+                      {selectedEvent.status}
+                    </span>
+                    {selectedEvent.location && (
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-slate-600 dark:text-slate-400">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        {selectedEvent.location}
+                      </span>
+                    )}
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-display font-bold text-slate-900 dark:text-white mb-2">
+                    {selectedEvent.title}
+                  </h2>
+                  <div className="text-sm font-medium text-primary-600 dark:text-primary-400">
+                    {new Date(selectedEvent.start_at).toLocaleString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                      hour: 'numeric',
+                      minute: '2-digit'
+                    })}
+                    {selectedEvent.end_at && ` - ${new Date(selectedEvent.end_at).toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit'
+                    })}`}
+                  </div>
+                </div>
+
+                {selectedEvent.description && (
+                  <div className="prose prose-slate dark:prose-invert max-w-none">
+                    <p className="whitespace-pre-wrap text-slate-600 dark:text-slate-300 leading-relaxed">
+                      {selectedEvent.description}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </Section>
     </>
   );

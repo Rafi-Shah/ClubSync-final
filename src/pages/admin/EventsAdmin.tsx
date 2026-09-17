@@ -286,6 +286,7 @@ export default function EventsAdmin() {
               <option value="draft">Draft</option>
               <option value="published">Published</option>
               <option value="cancelled">Cancelled</option>
+              <option value="completed">Completed</option>
             </Select>
             <Select label="Organizer" value={form.organized_by_member_id} onChange={(e) => setForm({ ...form, organized_by_member_id: e.target.value })}>
               <option value="">— Select organizer —</option>

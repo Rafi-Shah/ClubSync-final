@@ -35,12 +35,15 @@ function statusBadge(status: string) {
   }
 }
 
-export default function EventCard({ event }: { event: ClubEvent }) {
+export default function EventCard({ event, onClick }: { event: ClubEvent; onClick?: () => void }) {
   const dateObj = formatDate(event.start_at);
   const statusCfg = statusBadge(event.status);
 
   return (
-    <article className="glass-card group flex flex-col h-full overflow-hidden hover:-translate-y-1.5 hover:shadow-2xl transition-all duration-300 border border-slate-200/70 dark:border-white/10">
+    <article 
+      className={`glass-card group flex flex-col h-full overflow-hidden hover:-translate-y-1.5 hover:shadow-2xl transition-all duration-300 border border-slate-200/70 dark:border-white/10 ${onClick ? 'cursor-pointer' : ''}`}
+      onClick={onClick}
+    >
       {/* Cover Image Header */}
       <div className="relative h-52 overflow-hidden bg-slate-950">
         {event.cover_image_url ? (

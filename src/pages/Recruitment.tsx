@@ -68,7 +68,42 @@ export default function RecruitmentPage() {
       <Section className="bg-slate-50/40 dark:bg-slate-950/40">
         <div className="container-page max-w-3xl">
           {recruitments.length === 0 ? (
-            <EmptyState title="Recruitment currently closed" message="There are no active recruitment drives right now. Please check back at the start of next semester!" />
+            <div className="glass-card max-w-2xl mx-auto my-16 p-8 sm:p-14 flex flex-col items-center justify-center text-center gap-8 relative overflow-hidden border border-slate-200/80 dark:border-white/10 shadow-2xl animate-fade-in-up">
+              {/* Animated background blobs */}
+              <div className="absolute -top-20 -left-20 w-72 h-72 bg-primary-500/20 dark:bg-primary-500/10 rounded-full blur-3xl animate-pulse-slow" />
+              <div className="absolute -bottom-20 -right-20 w-72 h-72 bg-indigo-500/20 dark:bg-indigo-500/10 rounded-full blur-3xl animate-pulse-slow" style={{ animationDelay: '2s' }} />
+              
+              <div className="relative z-10">
+                <div className="w-28 h-28 sm:w-36 sm:h-36 mx-auto bg-gradient-to-tr from-slate-50 to-white dark:from-slate-800 dark:to-slate-700 rounded-[2.5rem] shadow-xl flex items-center justify-center mb-2 animate-float border border-slate-200/50 dark:border-white/10 rotate-3">
+                  <div className="absolute inset-0 bg-gradient-to-tr from-primary-500/10 to-indigo-500/10 rounded-[2.5rem]" />
+                  <svg className="w-14 h-14 sm:w-16 sm:h-16 text-primary-500 drop-shadow-md relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
+                  </svg>
+                </div>
+              </div>
+              
+              <div className="space-y-4 relative z-10">
+                <h2 className="text-3xl sm:text-4xl font-display font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 via-primary-900 to-slate-900 dark:from-white dark:via-primary-100 dark:to-white animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                  Recruitment is Closed
+                </h2>
+                <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 max-w-lg mx-auto leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+                  We are not accepting new applications at this moment. We usually open recruitment drives at the beginning of each semester. 
+                  <br className="hidden sm:block" /> Stay tuned!
+                </p>
+              </div>
+
+              <div className="mt-4 relative z-10 animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+                <a
+                  href="/"
+                  className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold hover:scale-105 hover:shadow-xl hover:shadow-slate-900/20 dark:hover:shadow-white/20 transition-all duration-300"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                  </svg>
+                  Return to Home
+                </a>
+              </div>
+            </div>
           ) : (
             <>
               {/* Open Recruitment Information Cards */}
